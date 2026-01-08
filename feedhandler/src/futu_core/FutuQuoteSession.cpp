@@ -1,14 +1,17 @@
 ﻿#include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/tool.h"
 #include <FTAPI.h>
+#include <iostream>
 #include <mutex>
 
 FutuQuoteSession::FutuQuoteSession()
+    : m_pQotApi((Futu::FTAPI::CreateQotApi()))
+    , m_bQotInitSuc(false)
+    , m_hasReply(false)
+    , m_bSubSuc(false)
 {
-    m_pQotApi = Futu::FTAPI::CreateQotApi();
     m_pQotApi->RegisterQotSpi(this);
     m_pQotApi->RegisterConnSpi(this);
-    m_bQotInitSuc = false;
 }
 FutuQuoteSession::~FutuQuoteSession()
 {
@@ -70,8 +73,6 @@ void FutuQuoteSession::OnDisConnect(FTAPI_Conn *pConn,
 
 void FutuQuoteSession::OnReply_Sub(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp)
 {
-    std::cout << "subscribe result: " << stRsp.rettype() << std::endl;
-
     if (stRsp.rettype() == Common::RetType_Succeed)
     {
         m_bSubSuc = true;
@@ -141,7 +142,7 @@ void FutuQuoteSession::OnPush_UpdateBroker(const Qot_UpdateBroker::Response &stR
 
 void FutuQuoteSession::Run()
 {
-    std::cout << "Quote Pushing" << std::endl;
+    std::cout << "Quote Demo" << std::endl;
 
     m_bSubSuc = false;
 
