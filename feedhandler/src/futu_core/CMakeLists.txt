@@ -1,5 +1,5 @@
 add_library(futu_core STATIC
-    session.cpp
+    FutuQuoteSession.cpp
 )
 
 target_include_directories(futu_core
