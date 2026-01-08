@@ -1,6 +1,7 @@
 ﻿#include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/tool.h"
 #include <FTAPI.h>
+#include <mutex>
 
 FutuQuoteSession::FutuQuoteSession()
 {
@@ -8,13 +9,10 @@ FutuQuoteSession::FutuQuoteSession()
     m_pQotApi->RegisterQotSpi(this);
     m_pQotApi->RegisterConnSpi(this);
     m_bQotInitSuc = false;
-
-    m_pSem = new Semaphore(0);
 }
 FutuQuoteSession::~FutuQuoteSession()
 {
     UnInitQot();
-    delete m_pSem;
 }
 
 bool FutuQuoteSession::InitQot(const char *szIP, uint16_t nPort)
@@ -22,7 +20,7 @@ bool FutuQuoteSession::InitQot(const char *szIP, uint16_t nPort)
     if (!m_bQotInitSuc && m_pQotApi != nullptr)
     {
         m_pQotApi->InitConnect(szIP, nPort, false);
-        m_pSem->wait();
+        WaitReply(1);
     }
     return m_bQotInitSuc;
 }
@@ -42,12 +40,18 @@ void FutuQuoteSession::WaitReply(int32_t nSerilNo)
 {
     if (nSerilNo != 0)
     {
-        m_pSem->wait();
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cv.wait(lock, [this]() { return m_hasReply; });
+        m_hasReply = false;
     }
 }
 void FutuQuoteSession::PostReply()
 {
-    m_pSem->post();
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_hasReply = true;
+    }
+    m_cv.notify_one();
 }
 
 void FutuQuoteSession::OnInitConnect(FTAPI_Conn *pConn,
@@ -66,9 +70,11 @@ void FutuQuoteSession::OnDisConnect(FTAPI_Conn *pConn,
 
 void FutuQuoteSession::OnReply_Sub(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp)
 {
+    std::cout << "subscribe result: " << stRsp.rettype() << std::endl;
+
     if (stRsp.rettype() == Common::RetType_Succeed)
     {
-        bSubSuc = true;
+        m_bSubSuc = true;
     }
     PostReply();
 }
@@ -137,7 +143,7 @@ void FutuQuoteSession::Run()
 {
     std::cout << "Quote Pushing" << std::endl;
 
-    bSubSuc = false;
+    m_bSubSuc = false;
 
     InitQot("127.0.0.1", 11111);
 
@@ -178,10 +184,10 @@ void FutuQuoteSession::Run()
 		cout << "Sub" << endl;
 		WaitReply(m_pQotApi->Sub(pbSub));
 
-		if (bSubSuc)
+		if (m_bSubSuc)
 		{
 			//请在OnPush_UpdateXXX回调里面观察数据
-			CPSleep(60);
+			CPSleep(20);
 
 			//反订阅
 			pSubC2S = pbSub.mutable_c2s();
@@ -191,8 +197,8 @@ void FutuQuoteSession::Run()
 		}
 		else
 		{
-			PrintError("Sub failed");
-		}
+        	std::cerr << "ERROR: " << __FUNCTION__ << ", retMsg = " << "Sub failed" << std::endl;
+        }
 	}
 
 	//关闭行情连接，连接不再使用之后，要关闭，否则占用不必要资源

@@ -1,7 +1,11 @@
 ﻿#pragma once
-#include "tool.h"
+#include <FTAPI.h>
+#include <FTSPI.h>
+#include <condition_variable>
+#include <cstdint>
+#include <mutex>
 
-class FutuQuoteSession : public FTSPI_Qot, public FTSPI_Conn
+class FutuQuoteSession : public Futu::FTSPI_Qot, public Futu::FTSPI_Conn
 {
 public:
 	FutuQuoteSession();
@@ -16,17 +20,19 @@ protected:
 	void WaitReply(int32_t nSerilNo);
 	void PostReply();
 
+private:
+    Futu::FTAPI_Qot *m_pQotApi;
+    bool m_bQotInitSuc;
+
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    bool m_hasReply;
+
+    bool m_bSubSuc;
+
 protected:
-	FTAPI_Qot *m_pQotApi;
-	bool m_bQotInitSuc;
-
-	Semaphore *m_pSem;
-
-    bool bSubSuc;
-
-protected:
-	virtual void OnInitConnect(FTAPI_Conn* pConn, Futu::i64_t nErrCode, const char* strDesc);
-	virtual void OnDisConnect(FTAPI_Conn* pConn, Futu::i64_t nErrCode);
+	virtual void OnInitConnect(Futu::FTAPI_Conn* pConn, Futu::i64_t nErrCode, const char* strDesc);
+	virtual void OnDisConnect(Futu::FTAPI_Conn* pConn, Futu::i64_t nErrCode);
 
     virtual void OnReply_Sub(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp);
 
@@ -36,10 +42,6 @@ protected:
 	virtual void OnPush_UpdateKL(const Qot_UpdateKL::Response &stRsp);
 	virtual void OnPush_UpdateRT(const Qot_UpdateRT::Response &stRsp);
 	virtual void OnPush_UpdateBroker(const Qot_UpdateBroker::Response &stRsp);
-
-private:
-	void Unlock(const char *szPwdMD5, Trd_Common::SecurityFirm enFirm);
-	void GetAccListAndSubTradePush();
 
 protected:
 	virtual void OnReply_GetGlobalState(Futu::u32_t nSerialNo, const GetGlobalState::Response &stRsp){}

@@ -14,17 +14,19 @@ int main (int argc, char *argv[]) {
 
     FutuQuoteSession sess;
 
-    sess.Run();
-/*
+    /*
     if(!sess.Start()) {
         std::cerr << "Session Start failed.\n";
         return 1;
     }
+    */
+    
+    std::thread t(&FutuQuoteSession::Run, &sess);
 
     while (!g_stop.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-*/
-
+    
+    t.join();
     return 0;
 }
