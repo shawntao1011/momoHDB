@@ -4,6 +4,7 @@
 #include <csignal>
 #include <thread>
 #include "futu_core/FutuQuoteSession.hpp"
+#include "futu_core/SubscrbeManager.hpp"
 
 static std::atomic<bool> g_stop{false};
 
@@ -13,6 +14,8 @@ int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
 
     FutuQuoteSession sess;
+    SubscribeManager subManager(sess);
+    sess.SetSubscribeManager(&subManager);
 
     /*
     if(!sess.Start()) {

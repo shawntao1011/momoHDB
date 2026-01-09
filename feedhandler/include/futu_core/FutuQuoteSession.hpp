@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <mutex>
 
+class SubscribeManager;
+
 class FutuQuoteSession : public Futu::FTSPI_Qot, public Futu::FTSPI_Conn
 {
 public:
@@ -15,20 +17,22 @@ public:
 	void UnInitQot();
     
     void Run();
+    
+    Futu::FTAPI_Qot* GetQotApi() const;
+    void SetSubscribeManager(SubscribeManager* manager);
 
-protected:
-	void WaitReply(int32_t nSerilNo);
-	void PostReply();
+	void WaitForReply(int32_t nSerilNo);
+	void NotifyReply();
 
 private:
-    Futu::FTAPI_Qot *m_pQotApi;
+    Futu::FTAPI_Qot* m_pQotApi;
     bool m_bQotInitSuc;
 
     std::mutex m_mutex;
     std::condition_variable m_cv;
     bool m_hasReply;
 
-    bool m_bSubSuc;
+    SubscribeManager* m_subscribeManager;
 
 protected:
 	virtual void OnInitConnect(Futu::FTAPI_Conn* pConn, Futu::i64_t nErrCode, const char* strDesc);
