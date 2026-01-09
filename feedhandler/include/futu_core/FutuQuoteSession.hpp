@@ -1,38 +1,50 @@
 ﻿#pragma once
 #include <FTAPI.h>
+#include <FTAPIChannel_Define.h>
 #include <FTSPI.h>
-#include <condition_variable>
+#include <Proto/Qot_Sub.pb.h>
+#include <Proto/Qot_UpdateOrderBook.pb.h>
+#include <atomic>
 #include <cstdint>
-#include <mutex>
 
 class SubscribeManager;
 
-class FutuQuoteSession : public Futu::FTSPI_Qot, public Futu::FTSPI_Conn
+struct SessionCallbacks {
+    void* ctx{nullptr};
+
+    void (*on_connected)(void* ctx, int64_t err, const char* desc) = nullptr;
+    void (*on_disconnected)(void* ctx, int64_t err) = nullptr;
+    
+    void (*on_sub_reply)(void* ctx, int32_t serial, const Qot_Sub::Response& rsp) = nullptr;
+    
+    void (*on_push_basicqot)(void* ctx, const Qot_UpdateBasicQot::Response& rsp) = nullptr;
+    void (*on_push_orderbook)(void* ctx, const Qot_UpdateOrderBook::Response& rsp) = nullptr;
+    void (*on_push_ticker)(void* ctx, const Qot_UpdateTicker::Response& rsp) = nullptr;
+    void (*on_push_kl)(void* ctx, const Qot_UpdateKL::Response& rsp) = nullptr;
+    void (*on_push_rt)(void* ctx, const Qot_UpdateRT::Response& rsp) = nullptr;
+    void (*on_push_broker)(void* ctx, const Qot_UpdateBroker::Response& rsp) = nullptr;
+
+};
+
+class FutuQuoteSession
+    : public Futu::FTSPI_Qot
+    , public Futu::FTSPI_Conn
 {
 public:
-	FutuQuoteSession();
+	FutuQuoteSession(SessionCallbacks cbs);
 	~FutuQuoteSession();
 
-	bool InitQot(const char *szIP, uint16_t nPort);
-	void UnInitQot();
+	bool start(const char *szIP, uint16_t nPort);
+	void stop();
     
-    void Run();
-    
-    Futu::FTAPI_Qot* GetQotApi() const;
-    void SetSubscribeManager(SubscribeManager* manager);
-
-	void WaitForReply(int32_t nSerilNo);
-	void NotifyReply();
+    bool connected() const { return connected_.load(); };
+    Futu::u32_t sub(const Qot_Sub::Request& rsp);
 
 private:
-    Futu::FTAPI_Qot* m_pQotApi;
-    bool m_bQotInitSuc;
+    Futu::FTAPI_Qot* qot_{nullptr};
+    SessionCallbacks cbs_;
 
-    std::mutex m_mutex;
-    std::condition_variable m_cv;
-    bool m_hasReply;
-
-    SubscribeManager* m_subscribeManager;
+    std::atomic<bool> connected_{false};
 
 protected:
 	virtual void OnInitConnect(Futu::FTAPI_Conn* pConn, Futu::i64_t nErrCode, const char* strDesc);

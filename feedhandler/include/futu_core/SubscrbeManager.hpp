@@ -1,31 +1,55 @@
 #pragma once
+#include "futu_core/FutuQuoteSession.hpp"
 #include <FTAPI.h>
 #include <FTSPI.h>
 #include <FTAPIChannel_Define.h>
-class FutuQuoteSession;
+#include <atomic>
+#include <cstdint>
+
+struct Envelope {
+    std::string topic;      // futu.quote.raw
+    std::string key;        // symbol
+    std::string payload;    // bytes
+    std::int64_t ts_ns{0};  // ingest time
+};
+
+struct Sink {
+    void* ctx{};
+    void (*submit)(void*, Envelope&&) = nullptr;
+    void (*flush)(void*, int) = nullptr;
+};
 
 class SubscribeManager {
   public:
-    explicit SubscribeManager(FutuQuoteSession &session);
+    explicit SubscribeManager(Sink sink);
 
-    void Run();
+    void bind_session(FutuQuoteSession* s) { session_ = s; };
+    
+    void on_connected(Futu::i64_t err, const char* desc);
+    void on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp);
+    
+    void on_push_basicqot(const Qot_UpdateBasicQot::Response &stRsp);
+    void on_push_orderbook(const Qot_UpdateOrderBook::Response &stRsp);
+    void on_push_ticker(const Qot_UpdateTicker::Response &stRsp);
+    void on_push_kl(const Qot_UpdateKL::Response &stRsp);
+    void on_push_rt(const Qot_UpdateRT::Response &stRsp);
+    void on_push_broker(const Qot_UpdateBroker::Response &stRsp);
+    
+    void run(std::atomic<bool>& stop);
 
-    void OnReply_Sub(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp);
-    void OnPush_UpdateBasicQot(const Qot_UpdateBasicQot::Response &stRsp);
-    void OnPush_UpdateOrderBook(const Qot_UpdateOrderBook::Response &stRsp);
-    void OnPush_UpdateTicker(const Qot_UpdateTicker::Response &stRsp);
-    void OnPush_UpdateKL(const Qot_UpdateKL::Response &stRsp);
-    void OnPush_UpdateRT(const Qot_UpdateRT::Response &stRsp);
-    void OnPush_UpdateBroker(const Qot_UpdateBroker::Response &stRsp);
+private:
+    void drive_subscriptions();
 
-  private:
-    void BuildSubscribeRequest(Qot_Sub::Request &request, bool isSub) const;
+    void publish_basicqot(const Qot_UpdateBasicQot::Response &stRsp);
+    void publish_orderbook(const Qot_UpdateOrderBook::Response &stRsp);
+    void publish_ticker(const Qot_UpdateTicker::Response &stRsp);
+    void publish_kl(const Qot_UpdateKL::Response &stRsp);
+    void publish_rt(const Qot_UpdateRT::Response &stRsp);
+    void publish_broker(const Qot_UpdateBroker::Response &stRsp);
 
-    FutuQuoteSession &m_session;
-    std::vector<std::string> m_securities;
-    std::vector<Qot_Common::SubType> m_subTypes{
-        Qot_Common::SubType_Basic,  Qot_Common::SubType_OrderBook,
-        Qot_Common::SubType_Broker, Qot_Common::SubType_Ticker,
-        Qot_Common::SubType_KL_Day, Qot_Common::SubType_RT};
-    bool m_subsuc;
+private:
+    Sink sink_;
+    FutuQuoteSession* session_{nullptr};
+
+    std::atomic<bool> connected_{false};
 };
