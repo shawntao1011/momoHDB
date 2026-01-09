@@ -87,7 +87,7 @@ void SubscribeManager::BuildSubscribeRequest(Qot_Sub::Request &request, bool isS
 {
     Qot_Sub::C2S* pSubC2S = request.mutable_c2s();
     pSubC2S->clear_securitylist();
-    pSubC2S->clear_securitylist();
+    pSubC2S->clear_subtypelist();
 
     for (const auto&sec : m_securities)
     {
@@ -103,5 +103,5 @@ void SubscribeManager::BuildSubscribeRequest(Qot_Sub::Request &request, bool isS
 
     pSubC2S->set_issuborunsub(isSub);
 
-    pSubC2S->set_issuborunsub(isSub);
+    pSubC2S->set_isregorunregpush(isSub);
 }
