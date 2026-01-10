@@ -1,17 +1,12 @@
 #pragma once
 #include "futu_core/FutuQuoteSession.hpp"
-#include <FTAPI.h>
 #include <FTSPI.h>
 #include <FTAPIChannel_Define.h>
 #include <atomic>
 #include <cstdint>
 
-struct Envelope {
-    std::string topic;      // futu.quote.raw
-    std::string key;        // symbol
-    std::string payload;    // bytes
-    std::int64_t ts_ns{0};  // ingest time
-};
+#include "common/Envelope.h"
+#include "common/SPSCRing.h"
 
 struct Sink {
     void* ctx{};
@@ -40,16 +35,18 @@ class SubscribeManager {
 private:
     void drive_subscriptions();
 
-    void publish_basicqot(const Qot_UpdateBasicQot::Response &stRsp);
-    void publish_orderbook(const Qot_UpdateOrderBook::Response &stRsp);
-    void publish_ticker(const Qot_UpdateTicker::Response &stRsp);
-    void publish_kl(const Qot_UpdateKL::Response &stRsp);
-    void publish_rt(const Qot_UpdateRT::Response &stRsp);
-    void publish_broker(const Qot_UpdateBroker::Response &stRsp);
-
 private:
     Sink sink_;
     FutuQuoteSession* session_{nullptr};
+    SPSCRing<Envelope> inbox_{1u << 16};
 
     std::atomic<bool> connected_{false};
+    std::atomic<int64_t> dropped_basicqot_{0};
+    std::atomic<int64_t> dropped_orderbook_{0};
+    std::atomic<int64_t> dropped_ticker_{0};
+    std::atomic<int64_t> dropped_kl_{0};
+    std::atomic<int64_t> dropped_rt_{0};
+    std::atomic<int64_t> dropped_broker_{0};
+
+    static int64_t now_ns();
 };

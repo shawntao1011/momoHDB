@@ -61,28 +61,32 @@ void FutuQuoteSession::OnPush_UpdateBasicQot(
 }
 void FutuQuoteSession::OnPush_UpdateOrderBook(
     const Qot_UpdateOrderBook::Response &stRsp) {
+    std::cout << "[session] OnPush_UpdateOrderBook\n";
     if (cbs_.on_push_orderbook) {
         cbs_.on_push_orderbook(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateTicker(
     const Qot_UpdateTicker::Response &stRsp) {
+    std::cout << "[session] OnPush_UpdateTicker\n";
     if (cbs_.on_push_ticker) {
         cbs_.on_push_ticker(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateKL(const Qot_UpdateKL::Response &stRsp) {
+    std::cout << "[session] OnPush_UpdateKL\n";
     if (cbs_.on_push_kl) {
         cbs_.on_push_kl(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateRT(const Qot_UpdateRT::Response &stRsp) {
+    std::cout << "[session] OnPush_UpdateRT\n";
     if (cbs_.on_push_rt) {
         cbs_.on_push_rt(cbs_.ctx, stRsp);
     }
 }
-void FutuQuoteSession::OnPush_UpdateBroker(
-    const Qot_UpdateBroker::Response &stRsp) {
+void FutuQuoteSession::OnPush_UpdateBroker(const Qot_UpdateBroker::Response &stRsp) {
+    std::cout << "[session] OnPush_UpdateBroker\n";
     if (cbs_.on_push_broker) {
         cbs_.on_push_broker(cbs_.ctx, stRsp);
     }
