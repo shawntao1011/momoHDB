@@ -7,7 +7,7 @@
 #include <atomic>
 #include <cstdint>
 
-class SubscribeManager;
+class SubscriptionManager;
 
 struct SessionCallbacks {
     void* ctx{nullptr};

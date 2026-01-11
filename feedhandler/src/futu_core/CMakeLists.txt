@@ -1,6 +1,6 @@
 add_library(futu_core STATIC
-    FutuQuoteSession.cpp
-    SubscribeManager.cpp
+        FutuQuoteSession.cpp
+        SubscriptionManager.cpp
 )
 
 target_include_directories(futu_core
