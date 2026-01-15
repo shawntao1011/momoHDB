@@ -31,9 +31,15 @@ int main (int argc, char *argv[]) {
     std::string config_path =
         argc > 1 ? argv[1] : "feedhandler/config/subscribe.example.yaml";
 
+    SubCfgLoader loader;
+
     SubscriptionManager subman(sink,
-        config_path,
-        std::chrono::milliseconds(5000));
+        loader.load,
+        SubscriptionManager::Options
+        {
+            config_path,
+            std::chrono::milliseconds(5000)
+        });
    
     SessionCallbacks cbs;
     cbs.ctx = &subman;

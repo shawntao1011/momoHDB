@@ -66,7 +66,8 @@ set_target_properties(futu_openapi_protobuf PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${FUTU_INCDIR}"
 )
 
-add_library(futu_openapi INTERFACE)
+add_library(futu_openapi INTERFACE
+        ../include/futu_core/YamlSubscribeConfigLoader.hpp)
 target_link_libraries(futu_openapi INTERFACE
   futu_openapi_ftapi
   futu_openapi_channel

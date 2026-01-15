@@ -9,7 +9,11 @@
 #include <thread>
 #include <utility>
 
-SubscriptionManager::SubscriptionManager(Sink sink) : sink_(sink) {}
+SubscriptionManager::SubscriptionManager(Sink sink, ConfigLoaderFn cfgloader, Options opts)
+    : sink_(sink)
+    , cfgloader_(cfgloader)
+    , opts_(opts)
+{}
 
 void SubscriptionManager::on_connected(Futu::i64_t err, const char *desc)
 {
@@ -112,16 +116,30 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
     batch.reserve(1024);
 
     while (!stop.load(std::memory_order_relaxed)) {
-        if (connected_.load(std::memory_order_relaxed) && session_) {
-            drive_subscriptions();
+        if (should_check_file()) {
+            load_if_chanegd();
+            if (connected_.load(std::memory_order_relaxed)) {
+                apply_pending();
+            }
         }
 
-        inbox_.pop_many(batch, 1024);
+        if (connected_.load(std::memory_order_acquire) && session_) {
 
-        for (auto& e : batch) {
-            sink_.submit(sink_.ctx, std::move(e));
         }
+
         batch.clear();
+        auto n = inbox_.pop_many(batch, 1024);
+
+        if (n == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        } else {
+            if (sink_.submit) {
+                for (auto& e : batch) {
+                    sink_.submit(sink_.ctx, std::move(e));
+                }
+            }
+        }
+
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -130,28 +148,97 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
 }
 
 bool SubscriptionManager::should_check_file() {
-
+    const auto now = std::chrono::steady_clock::now();
+    if (!last_check_ || (now - *last_check_) >= opts_.refresh_interval) {
+        last_check_ = now;
+        return true;
+    }
+    return false;
 }
 bool SubscriptionManager::load_if_chanegd() {
+    if (!cfgloader_) return false;
 
+    std::error_code ec;
+    auto mtime = std::filesystem::last_write_time(opts_.config_path,  ec);
+    if (ec) return false;
+
+    // not force resubscribe && not updated
+    if (!force_resubscribe_ && has_current_ && mtime == last_mtime_) return false;
+
+    SubscribeConfig cfg;
+    if (!cfgloader_(opts_.config_path, cfg)) { return false; }
+
+    SubState st = canonicalize(cfg);
+
+    if (!force_resubscribe_ && has_current_ && st_equal(current_state_, st)) {
+        last_mtime_ = mtime;
+        return false;
+    }
+
+    pending_state_ = std::move(st);
+    has_pending_ = true;
+    last_mtime_ = mtime;
+    return true;
 }
 
 void SubscriptionManager::apply_pending() {
+    if (!session_) return;
+    if (!has_pending_) return;
 
+    if (!force_resubscribe_) {
+        do_full_resubscribe(pending_state_);
+        current_state_ = pending_state_;
+        has_current_ = true;
+        has_pending_ = false;
+        force_resubscribe_ = false;
+        return;
+    }
+
+    execute_diff(current_state_, pending_state_);
+
+    has_current_ = true;
+    has_pending_ = true;
+    current_state_ = pending_state_;
 }
 
 void SubscriptionManager::do_full_resubscribe(const SubState& target) {
-
+    if (has_current_) {
+        for (const auto&[id, mask] : current_state_) {
+            call_subscribe(id, mask);
+        }
+    }
+    for (const auto&[id, mask] : target) {
+        call_subscribe(id, mask);
+    }
 }
-bool SubscriptionManager::execute_diff(const SubState& current, const SubState& pending) {
+void SubscriptionManager::execute_diff(const SubState& current, const SubState& pending) {
+    SubscriptionTools stdiff = diff_state(current, pending);
+    for (const auto&[id, mask] : stdiff.remove_security) {
+        call_unsubscribe(id, mask);
+    }
+    for (const auto&[id, mask] : stdiff.del_subtypes) {
+        call_unsubscribe(id, mask);
+    }
 
+    for (const auto&[id, mask] : stdiff.add_subtypes) {
+        call_subscribe(id, mask);
+    }
+    for (const auto&[id, mask] : stdiff.add_security) {
+        call_subscribe(id, mask);
+    }
 }
 
 bool SubscriptionManager::call_subscribe(const SecurityId& id, SubMask mask) {
+    std::vector<Qot_Common::SubType> subtypes;
+    mask_to_vec(mask, subtypes);
 
+    return 0 != subscribe_api(id, subtypes);
 }
 bool SubscriptionManager::call_unsubscribe(const SecurityId& id, SubMask mask) {
+    std::vector<Qot_Common::SubType> unsubtypes;
+    mask_to_vec(mask, unsubtypes);
 
+    return 0 != unsubscribe_api(id, unsubtypes);
 }
 
 Futu::u32_t SubscriptionManager::subscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs) {

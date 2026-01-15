@@ -1,13 +1,13 @@
 #pragma once
 
-#include "SubscriptionTypes.hpp"
+#include "Subscription.hpp"
 
 struct DiffItem {
     SecurityId id;
     SubMask mask{};
 };
 
-struct SubscriptionDiff {
+struct SubscriptionTools {
     // to subscribe (add)
     std::vector<DiffItem> add_security;
     // to unsubscribe (remove)
@@ -18,8 +18,8 @@ struct SubscriptionDiff {
     std::vector<DiffItem> del_subtypes; // mask = old & ~new
 };
 
-inline SubscriptionDiff diff_state(const SubState& oldS, const SubState& newS) {
-    SubscriptionDiff d;
+inline SubscriptionTools diff_state(const SubState& oldS, const SubState& newS) {
+    SubscriptionTools d;
 
     for (const auto& [id, oldMask] : oldS) {
         auto it = newS.find(id);

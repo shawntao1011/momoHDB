@@ -6,11 +6,12 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 
 #include "SubscriptionDiff.hpp"
-#include "SubscriptionTypes.hpp"
-#include "common/Envelope.h"
-#include "common/SPSCRing.h"
+#include "Subscription.hpp"
+#include "common/Envelope.hpp"
+#include "common/SPSCRing.hpp"
 
 struct Sink {
     void* ctx{};
@@ -18,7 +19,7 @@ struct Sink {
     void (*flush)(void*, int) = nullptr;
 };
 
-using ConfigLoaderFn = bool(*)(const std::string& path, SubscribeConfig& out_cfg);
+using ConfigLoaderFn = bool(*)(const std::string& path);
 
 class SubscriptionManager {
   public:
@@ -54,7 +55,7 @@ private:
     void apply_pending();
 
     void do_full_resubscribe(const SubState& target); // called when force_resubscribe
-    bool execute_diff(const SubState& current,
+    void execute_diff(const SubState& current,
                   const SubState& pending);
 
     bool call_subscribe(const SecurityId& id, SubMask mask);
@@ -70,13 +71,13 @@ private:
     FutuQuoteSession* session_{nullptr};
     SPSCRing<Envelope> inbox_{1u << 16};
 
-    ConfigLoaderFn loader_{nullptr};
+    ConfigLoaderFn cfgloader_{nullptr};
     Options opts_;
 
     std::atomic<bool> connected_{false};
     bool force_resubscribe_{false}; // used when reconnect
 
-    std::chrono::steady_clock::time_point last_check_{};
+    std::optional<std::chrono::steady_clock::time_point> last_check_{};
     std::filesystem::file_time_type last_mtime_{};
 
     SubState current_state_{};
