@@ -20,7 +20,7 @@ void SubscriptionManager::on_connected(Futu::i64_t err, const char *desc)
     std::cout << "[subman] connected err=" << err
               << " desc=" << (desc ? desc : "") << "\n";
     connected_.store(err == 0);
-    if (err == 0) force_resubscribe_ = true;
+    if (err == 0) force_resubscribe_.store(true, std::memory_order_release);
 }
 void SubscriptionManager::on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp)
 {
@@ -117,14 +117,32 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
 
     while (!stop.load(std::memory_order_relaxed)) {
         if (should_check_file()) {
-            load_if_chanegd();
-            if (connected_.load(std::memory_order_relaxed)) {
-                apply_pending();
+            bool changed = load_if_chanegd();
+            if (changed) {
+                if (connected_.load(std::memory_order_relaxed)) {
+                    apply_pending();
+                }
             }
         }
 
-        if (connected_.load(std::memory_order_acquire) && session_) {
-
+        if (connected_.load(std::memory_order_relaxed) && session_) {
+            if (force_resubscribe_.exchange(false, std::memory_order_acq_rel)) {
+                if (has_pending_) {
+                    do_full_resubscribe(pending_state_);
+                    current_state_ = pending_state_;
+                    has_current_ = true;
+                    has_pending_ = false;
+                }
+            } else if (has_current_) {
+                do_full_resubscribe(current_state_);
+            } else {
+                if (load_if_chanegd()) {
+                    do_full_resubscribe(pending_state_);
+                    current_state_ = pending_state_;
+                    has_current_ = true;
+                    has_pending_ = false;
+                }
+            }
         }
 
         batch.clear();
@@ -132,16 +150,14 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
 
         if (n == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        } else {
-            if (sink_.submit) {
-                for (auto& e : batch) {
-                    sink_.submit(sink_.ctx, std::move(e));
-                }
-            }
+            continue;
         }
 
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (sink_.submit) {
+            for (auto& e : batch) {
+                sink_.submit(sink_.ctx, std::move(e));
+            }
+        }
     }
 
     if (sink_.flush) sink_.flush(sink_.ctx, 3000);
@@ -162,15 +178,15 @@ bool SubscriptionManager::load_if_chanegd() {
     auto mtime = std::filesystem::last_write_time(opts_.config_path,  ec);
     if (ec) return false;
 
-    // not force resubscribe && not updated
-    if (!force_resubscribe_ && has_current_ && mtime == last_mtime_) return false;
+    if (has_current_ && mtime == last_mtime_) return false;
 
     SubscribeConfig cfg;
-    if (!cfgloader_(opts_.config_path, cfg)) { return false; }
+    // try
+    cfg = cfgloader_(opts_.config_path);
 
     SubState st = canonicalize(cfg);
 
-    if (!force_resubscribe_ && has_current_ && st_equal(current_state_, st)) {
+    if (has_current_ && st_equal(current_state_, st)) {
         last_mtime_ = mtime;
         return false;
     }
@@ -182,23 +198,19 @@ bool SubscriptionManager::load_if_chanegd() {
 }
 
 void SubscriptionManager::apply_pending() {
-    if (!session_) return;
+    // call bind session in main
     if (!has_pending_) return;
 
-    if (!force_resubscribe_) {
+    if (force_resubscribe_.exchange(false, std::memory_order_acq_rel)) {
         do_full_resubscribe(pending_state_);
-        current_state_ = pending_state_;
-        has_current_ = true;
-        has_pending_ = false;
-        force_resubscribe_ = false;
-        return;
+    } else {
+        if (has_current_) execute_diff(current_state_, pending_state_);
+        else do_full_resubscribe(pending_state_);
     }
 
-    execute_diff(current_state_, pending_state_);
-
-    has_current_ = true;
-    has_pending_ = true;
     current_state_ = pending_state_;
+    has_current_ = true;
+    has_pending_ = false;
 }
 
 void SubscriptionManager::do_full_resubscribe(const SubState& target) {

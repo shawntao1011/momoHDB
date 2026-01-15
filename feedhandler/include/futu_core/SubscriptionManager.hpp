@@ -6,9 +6,10 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 
-#include "SubscriptionDiff.hpp"
+#include "SubscriptionTools.hpp"
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
 #include "common/SPSCRing.hpp"
@@ -19,7 +20,7 @@ struct Sink {
     void (*flush)(void*, int) = nullptr;
 };
 
-using ConfigLoaderFn = bool(*)(const std::string& path);
+using ConfigLoaderFn = std::function<SubscribeConfig(const std::string&)>;
 
 class SubscriptionManager {
   public:
@@ -75,7 +76,7 @@ private:
     Options opts_;
 
     std::atomic<bool> connected_{false};
-    bool force_resubscribe_{false}; // used when reconnect
+    std::atomic<bool> force_resubscribe_{false}; // used when init & reconnect
 
     std::optional<std::chrono::steady_clock::time_point> last_check_{};
     std::filesystem::file_time_type last_mtime_{};

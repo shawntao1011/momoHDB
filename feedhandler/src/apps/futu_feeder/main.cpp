@@ -5,10 +5,11 @@
 #include <thread>
 #include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/SubscriptionManager.hpp"
+#include "futu_core/YamlSubscribeConfigLoader.hpp"
 
 static std::atomic<bool> g_stop{false};
 
-static void on_sigint(int) { g_stop.store(true); }
+static void on_sigint(int) { g_stop.store(true, std::memory_order_relaxed); }
 
 struct DemoPublisher {
     static void submit(void*, Envelope&& e) {
@@ -31,10 +32,10 @@ int main (int argc, char *argv[]) {
     std::string config_path =
         argc > 1 ? argv[1] : "feedhandler/config/subscribe.example.yaml";
 
-    SubCfgLoader loader;
+    YamlSubscribeConfigLoader cfgloader;
 
     SubscriptionManager subman(sink,
-        loader.load,
+    [&](const std::string& path) { return cfgloader.load(config_path); },
         SubscriptionManager::Options
         {
             config_path,
@@ -80,9 +81,6 @@ int main (int argc, char *argv[]) {
     while (!g_stop.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(20));
-    g_stop.store(true, std::memory_order_relaxed);
 
     t.join();
     return 0;
