@@ -46,6 +46,8 @@ SubscribeConfig YamlSubscribeConfigLoader::load(const std::string& path) const {
 
         cfg.securities.push_back(std::move(spec));
     }
+
+    return cfg;
 }
 
 bool YamlSubscribeConfigLoader::parse_security(const std::string& symbol, // HK.00700
@@ -55,7 +57,7 @@ bool YamlSubscribeConfigLoader::parse_security(const std::string& symbol, // HK.
     if (pos == std::string::npos || pos == 0 || pos + 1>= symbol.size()) return false;
 
     auto mk = symbol.substr(0, pos);
-    auto code = mk.substr(pos + 1);
+    auto code = symbol.substr(pos + 1);
 
     Qot_Common::QotMarket market;
     if (!parse_market(mk, market)) return false;
@@ -81,7 +83,7 @@ bool YamlSubscribeConfigLoader::parse_subtype(const std::string& s, Qot_Common::
     if (s == "BasicQot") { out = Qot_Common::SubType_Basic; return true; }
     if (s == "OrderBook" ) { out = Qot_Common::SubType_OrderBook; return true; }
     if (s == "Ticker") { out = Qot_Common::SubType_Ticker; return true; }
-    if (s == "KL_1M") { out = Qot_Common::SubType_KL_1Min; return true; }
+    if (s == "KL_1Min") { out = Qot_Common::SubType_KL_1Min; return true; }
     if (s == "RT") { out = Qot_Common::SubType_RT; return true; }
     if (s == "Broker") { out = Qot_Common::SubType_Broker; return true; }
     return false;
@@ -94,7 +96,7 @@ bool YamlSubscribeConfigLoader::parse_security_subtypes(const YAML::Node& node,
     if (!node.IsSequence()) return false;
 
     for (const auto& it : node) {
-        if (it.IsScalar()) return false;
+        if (!it.IsScalar()) return false;
         Qot_Common::SubType st{};
         auto name = it.as<std::string>();
         if (!parse_subtype(name, st)) return false;

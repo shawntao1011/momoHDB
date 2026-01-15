@@ -30,7 +30,7 @@ int main (int argc, char *argv[]) {
     sink.flush = &DemoPublisher::flush;
 
     std::string config_path =
-        argc > 1 ? argv[1] : "feedhandler/config/subscribe.example.yaml";
+        argc > 1 ? argv[1] : "/home/tau/internal_projects/futu_DB/feedhandler/config/subscriptions.example.yaml";
 
     YamlSubscribeConfigLoader cfgloader;
 
