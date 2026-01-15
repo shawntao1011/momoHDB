@@ -128,10 +128,15 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
             std::cout << "[subman] ctrl connected=1 want_force=" << want_force
           << " want_poll=" << want_poll << "\n";
             // 2) Try load config -> produce pending_state_ if changed
-            const bool changed = load_if_chanegd();
+            const bool changed = load_if_changed();
+            if (!changed && want_force && has_current_ && !has_pending_) {
+                pending_state_ = current_state_;
+                has_pending_ = true;
+                std::cout << "[subman] load: force resubscribe using current state\n";
+            }
 
             // 3) If we have pending, apply it (diff or full)
-            if (changed && has_pending_) {
+            if (has_pending_) {
                 apply_pending();
             }
 
@@ -172,7 +177,7 @@ bool SubscriptionManager::should_check_file() {
     }
     return false;
 }
-bool SubscriptionManager::load_if_chanegd() {
+bool SubscriptionManager::load_if_changed() {
     if (!cfgloader_) {
         std::cout << "[subman] load: no cfgloader\n";
         return false;
@@ -230,7 +235,7 @@ void SubscriptionManager::apply_pending() {
 void SubscriptionManager::do_full_resubscribe(const SubState& target) {
     if (has_current_) {
         for (const auto&[id, mask] : current_state_) {
-            call_subscribe(id, mask);
+            call_unsubscribe(id, mask);
         }
     }
     for (const auto&[id, mask] : target) {

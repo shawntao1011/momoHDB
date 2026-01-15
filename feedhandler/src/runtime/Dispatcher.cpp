@@ -49,6 +49,11 @@ Dispatcher::Dispatcher(std::vector<std::unique_ptr<QueuedDownstream>> downstream
         ds->start();
     }
 }
+Dispatcher::~Dispatcher() {
+    for (auto& ds : downstreams_) {
+        ds->stop();
+    }
+}
 
 void Dispatcher::submit(void* ctx, Envelope&& e) {
     auto* self = static_cast<Dispatcher*>(ctx);

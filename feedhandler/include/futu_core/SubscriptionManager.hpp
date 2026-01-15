@@ -46,7 +46,7 @@ class SubscriptionManager {
 
 private:
     bool should_check_file();
-    bool load_if_chanegd();
+    bool load_if_changed();
 
     void apply_pending();
 
