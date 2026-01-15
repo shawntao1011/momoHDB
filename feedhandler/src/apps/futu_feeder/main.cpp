@@ -5,37 +5,45 @@
 #include <thread>
 #include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/SubscriptionManager.hpp"
-#include "futu_core/YamlSubscribeConfigLoader.hpp"
+#include "../../../include/config/YamlSubscribeConfigLoader.hpp"
+#include "runtime/Dispatcher.hpp"
+#include "sinks/DemoLogSink.hpp"
 
 static std::atomic<bool> g_stop{false};
 
 static void on_sigint(int) { g_stop.store(true, std::memory_order_relaxed); }
 
-struct DemoPublisher {
-    static void submit(void*, Envelope&& e) {
-        std::cout << "[demopublish] topic=" << e.topic
-                << " key=" << e.key
-                << " size=" << e.payload.size() << "\n";
-    }
-    
-    static void flush(void*, int) {}
-};
-
 int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
 
-    Sink sink;
-    sink.ctx = nullptr;
-    sink.submit = &DemoPublisher::submit;
-    sink.flush = &DemoPublisher::flush;
+    std::vector<std::unique_ptr<QueuedDownstream>> downstreams;
+    downstreams.emplace_back(
+        std::make_unique<QueuedDownstream>(
+        "redpanda-prod",
+        std::make_unique<DemoLogSink>("redpanda-prod"),
+        8192   // capacity, DROP_OLDEST
+        )
+    );
+    Dispatcher dispatcher(std::move(downstreams));
 
-    std::string config_path =
-        argc > 1 ? argv[1] : "/home/tau/internal_projects/futu_DB/feedhandler/config/subscriptions.example.yaml";
+    Sink sink;
+    sink.ctx = &dispatcher;
+    sink.submit = &Dispatcher::submit;
+    sink.flush = &Dispatcher::flush;
+
+    namespace fs = std::filesystem;
+    fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
+    fs::path default_cfg = exe_dir / "../../../../config/subscriptions.example.yaml";
+    std::string config_path = (argc > 1) ? argv[1] : default_cfg.string();
+    if (!std::filesystem::exists(config_path)) {
+        std::cerr << "[FATAL] config not found: " << config_path << "\n";
+        std::exit(1);
+    }
 
     YamlSubscribeConfigLoader cfgloader;
 
     SubscriptionManager subman(sink,
-    [&](const std::string& path) { return cfgloader.load(config_path); },
+    [&](const std::string& path) { return cfgloader.load(path); },
         SubscriptionManager::Options
         {
             config_path,

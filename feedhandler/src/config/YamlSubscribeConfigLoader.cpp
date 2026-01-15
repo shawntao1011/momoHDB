@@ -1,4 +1,4 @@
-# include "futu_core/YamlSubscribeConfigLoader.hpp"
+#include "../../include/config/YamlSubscribeConfigLoader.hpp"
 
 YamlSubscribeConfigLoader::YamlSubscribeConfigLoader()
 {}

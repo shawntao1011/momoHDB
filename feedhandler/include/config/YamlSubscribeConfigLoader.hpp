@@ -1,5 +1,5 @@
 # pragma once
-#include "Subscription.hpp"
+#include "../futu_core/Subscription.hpp"
 #include <yaml-cpp/yaml.h>
 
 class YamlSubscribeConfigLoader {

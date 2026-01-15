@@ -1,7 +1,7 @@
 add_library(futu_core STATIC
         FutuQuoteSession.cpp
         SubscriptionManager.cpp
-        YamlSubscribeConfigLoader.cpp
+        ../config/YamlSubscribeConfigLoader.cpp
 )
 
 find_package(yaml-cpp REQUIRED)

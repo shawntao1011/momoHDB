@@ -13,12 +13,7 @@
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
 #include "common/SPSCRing.hpp"
-
-struct Sink {
-    void* ctx{};
-    void (*submit)(void*, Envelope&&) = nullptr;
-    void (*flush)(void*, int) = nullptr;
-};
+#include "../sinks/Sink.hpp"
 
 using ConfigLoaderFn = std::function<SubscribeConfig(const std::string&)>;
 

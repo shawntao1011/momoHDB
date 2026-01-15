@@ -6,4 +6,5 @@ target_link_options(futu_feeder PRIVATE -no-pie)
 target_link_libraries(futu_feeder 
     PRIVATE 
         futu_core
+        sinks
 )
