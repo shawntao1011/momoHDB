@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include "common/JsonLogger.hpp"
+
 FutuQuoteSession::FutuQuoteSession(SessionCallbacks cbs) : cbs_(cbs) {
     qot_ = new Futu::FTAPI_Qot();
     qot_->RegisterQotSpi(this);
@@ -15,10 +17,15 @@ FutuQuoteSession::~FutuQuoteSession() {
     delete qot_;
 }
 
-bool FutuQuoteSession::start(const char *ip, uint16_t port) {
-    auto sn = qot_->InitConnect(ip, port, false);
-    std::cout << "[session] InitConnect serial=" << sn << std::endl;
-    return true;
+std::expected<void, std::string> FutuQuoteSession::start(const char *ip, uint16_t port) {
+    if (!qot_) return std::unexpected("qot_ is null");
+
+    (void)qot_->InitConnect(ip, port, false);
+
+    logger::info("session", "init_connect_requested",
+                 {logger::field("ip", ip ? ip : ""),
+                  logger::num("port", port)});
+    return {};
 }
 void FutuQuoteSession::stop() {
     if (qot_)
@@ -54,39 +61,39 @@ void FutuQuoteSession::OnReply_Sub(Futu::u32_t nSerialNo,
 
 void FutuQuoteSession::OnPush_UpdateBasicQot(
     const Qot_UpdateBasicQot::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateBasicQot\n";
+    logger::debug("session", "push_basicqot");
     if (cbs_.on_push_basicqot) {
         cbs_.on_push_basicqot(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateOrderBook(
     const Qot_UpdateOrderBook::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateOrderBook\n";
+    logger::debug("session", "push_orderbook");
     if (cbs_.on_push_orderbook) {
         cbs_.on_push_orderbook(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateTicker(
     const Qot_UpdateTicker::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateTicker\n";
+    logger::debug("session", "push_ticker");
     if (cbs_.on_push_ticker) {
         cbs_.on_push_ticker(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateKL(const Qot_UpdateKL::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateKL\n";
+    logger::debug("session", "push_kl");
     if (cbs_.on_push_kl) {
         cbs_.on_push_kl(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateRT(const Qot_UpdateRT::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateRT\n";
+    logger::debug("session", "push_rt");
     if (cbs_.on_push_rt) {
         cbs_.on_push_rt(cbs_.ctx, stRsp);
     }
 }
 void FutuQuoteSession::OnPush_UpdateBroker(const Qot_UpdateBroker::Response &stRsp) {
-    std::cout << "[session] OnPush_UpdateBroker\n";
+    logger::debug("session", "push_broker");
     if (cbs_.on_push_broker) {
         cbs_.on_push_broker(cbs_.ctx, stRsp);
     }

@@ -4,7 +4,8 @@ target_compile_options(futu_feeder PRIVATE -fno-PIE)
 target_link_options(futu_feeder PRIVATE -no-pie)
 
 target_link_libraries(futu_feeder 
-    PRIVATE 
+    PRIVATE
+        feedhandler::common
         futu_core
-        sinks
+        runtime
 )

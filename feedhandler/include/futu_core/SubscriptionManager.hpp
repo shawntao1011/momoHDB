@@ -15,7 +15,7 @@
 #include "common/SPSCRing.hpp"
 #include "../sinks/Sink.hpp"
 
-using ConfigLoaderFn = std::function<SubscribeConfig(const std::string&)>;
+using ConfigLoaderFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
 
 class SubscriptionManager {
   public:
@@ -46,7 +46,7 @@ class SubscriptionManager {
 
 private:
     bool should_check_file();
-    bool load_if_changed();
+    std::expected<bool, std::string> load_if_changed();
 
     void apply_pending();
 
@@ -54,8 +54,8 @@ private:
     void execute_diff(const SubState& current,
                   const SubState& pending);
 
-    bool call_subscribe(const SecurityId& id, SubMask mask);
-    bool call_unsubscribe(const SecurityId& id, SubMask mask);
+    std::expected<void, std::string> call_subscribe(const SecurityId& id, SubMask mask);
+    std::expected<void, std::string> call_unsubscribe(const SecurityId& id, SubMask mask);
 
     Futu::u32_t subscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs);
     Futu::u32_t unsubscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs);

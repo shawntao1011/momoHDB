@@ -6,6 +6,7 @@
 #include <Proto/Qot_UpdateOrderBook.pb.h>
 #include <atomic>
 #include <cstdint>
+#include <expected>
 
 class SubscriptionManager;
 
@@ -34,7 +35,7 @@ public:
 	FutuQuoteSession(SessionCallbacks cbs);
 	~FutuQuoteSession();
 
-	bool start(const char *szIP, uint16_t nPort);
+	std::expected<void, std::string> start(const char *szIP, uint16_t nPort);
 	void stop();
     
     bool connected() const { return connected_.load(); };

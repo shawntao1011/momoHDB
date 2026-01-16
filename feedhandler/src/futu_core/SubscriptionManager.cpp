@@ -9,6 +9,8 @@
 #include <thread>
 #include <utility>
 
+#include "common/JsonLogger.hpp"
+
 SubscriptionManager::SubscriptionManager(Sink sink, ConfigLoaderFn cfgloader, Options opts)
     : sink_(sink)
     , cfgloader_(cfgloader)
@@ -17,16 +19,17 @@ SubscriptionManager::SubscriptionManager(Sink sink, ConfigLoaderFn cfgloader, Op
 
 void SubscriptionManager::on_connected(Futu::i64_t err, const char *desc)
 {
-    std::cout << "[subman] connected err=" << err
-              << " desc=" << (desc ? desc : "") << "\n";
+    logger::info("subman", "connected",
+                 {logger::num("err", err), logger::field("desc", desc ? desc : "")});
     connected_.store(err == 0);
     if (err == 0) force_resubscribe_.store(true, std::memory_order_release);
 }
 void SubscriptionManager::on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp)
 {
-    std::cout << "[subman] sub reply serial=" << nSerialNo
-              << " retType=" << stRsp.rettype() << " retMsg=" << stRsp.retmsg()
-              << "\n";
+    logger::info("subman", "sub_reply",
+             {logger::num("serial", nSerialNo),
+              logger::num("retType", stRsp.rettype()),
+              logger::field("retMsg", stRsp.retmsg())});
 }
 
 void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &stRsp)
@@ -125,14 +128,21 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         const bool want_poll  = should_check_file();
 
         if (connected && (want_force || want_poll)) {
-            std::cout << "[subman] ctrl connected=1 want_force=" << want_force
-          << " want_poll=" << want_poll << "\n";
+            logger::info("subman", "control_cycle",
+                         {logger::b("want_force", want_force),
+                          logger::b("want_poll", want_poll)});
             // 2) Try load config -> produce pending_state_ if changed
-            const bool changed = load_if_changed();
-            if (!changed && want_force && has_current_ && !has_pending_) {
+            const auto changed = load_if_changed();
+            if (!changed) {
+                logger::error("subman", "load_failed",
+              {logger::field("error", changed.error())});
+            }
+
+            const bool changed_value = changed.value_or(false);
+            if (!changed_value && want_force && has_current_ && !has_pending_) {
                 pending_state_ = current_state_;
                 has_pending_ = true;
-                std::cout << "[subman] load: force resubscribe using current state\n";
+                logger::info("subman", "force_resubscribe_current_state");
             }
 
             // 3) If we have pending, apply it (diff or full)
@@ -177,29 +187,33 @@ bool SubscriptionManager::should_check_file() {
     }
     return false;
 }
-bool SubscriptionManager::load_if_changed() {
+std::expected<bool, std::string> SubscriptionManager::load_if_changed() {
     if (!cfgloader_) {
-        std::cout << "[subman] load: no cfgloader\n";
-        return false;
+        return std::unexpected("no config loader set");
     }
     std::error_code ec;
     auto mtime = std::filesystem::last_write_time(opts_.config_path,  ec);
     if (ec) {
-        std::cout << "[subman] load: last_write_time failed path=" << opts_.config_path
-              << " ec=" << ec.message() << "\n";
-        return false;
+        return std::unexpected("last_write_time failed: " + ec.message());
     }
 
     if (has_current_ && mtime == last_mtime_) return false;
 
-    std::cout << "[subman] load: mtime ok path=" << opts_.config_path << "\n";
+    logger::info("subman", "load_mtime_ok",
+                 {logger::field("path", opts_.config_path)});
 
-    SubscribeConfig cfg = cfgloader_(opts_.config_path);
-    std::cout << "[subman] load: cfg securities=" << cfg.securities.size()
-                  << " default_subtypes=" << cfg.default_subtypes.size() << "\n";
+    auto cfg_result = cfgloader_(opts_.config_path);
+    if (!cfg_result) {
+        return std::unexpected(cfg_result.error());
+    }
+    const SubscribeConfig& cfg = *cfg_result;
+    logger::info("subman", "load_cfg",
+             {logger::num("securities", cfg.securities.size()),
+              logger::num("default_subtypes", cfg.default_subtypes.size())});
 
     SubState st = canonicalize(cfg);
-    std::cout << "[subman] load: canonical n=" << st.size() << "\n";
+    logger::info("subman", "load_canonical",
+                 {logger::num("count", st.size())});
 
     if (has_current_ && st_equal(current_state_, st)) {
         last_mtime_ = mtime;
@@ -209,13 +223,14 @@ bool SubscriptionManager::load_if_changed() {
     pending_state_ = std::move(st);
     has_pending_ = true;
     last_mtime_ = mtime;
-    std::cout << "[subman] load: pending ready\n";
+    logger::info("subman", "load_pending_ready");
     return true;
 }
 
 void SubscriptionManager::apply_pending() {
-    std::cout << "[subman] apply_pending enter pending=" << has_pending_
-          << " target_n=" << pending_state_.size() << "\n";
+    logger::info("subman", "apply_pending",
+             {logger::b("has_pending", has_pending_),
+              logger::num("target_n", pending_state_.size())});
 
     // call bind session in main
     if (!has_pending_) return;
@@ -235,45 +250,91 @@ void SubscriptionManager::apply_pending() {
 void SubscriptionManager::do_full_resubscribe(const SubState& target) {
     if (has_current_) {
         for (const auto&[id, mask] : current_state_) {
-            call_unsubscribe(id, mask);
+            auto res = call_unsubscribe(id, mask);
+            if (!res) {
+                logger::error("subman", "unsubscribe_failed",
+                              {logger::field("code", id.code),
+                               logger::field("error", res.error())});
+            }
         }
     }
     for (const auto&[id, mask] : target) {
-        call_subscribe(id, mask);
+        auto res = call_subscribe(id, mask);
+        if (!res) {
+            logger::error("subman", "subscribe_failed",
+                          {logger::field("code", id.code),
+                           logger::field("error", res.error())});
+        }
     }
 }
 void SubscriptionManager::execute_diff(const SubState& current, const SubState& pending) {
     SubscriptionTools stdiff = diff_state(current, pending);
     for (const auto&[id, mask] : stdiff.remove_security) {
-        call_unsubscribe(id, mask);
+        auto res = call_unsubscribe(id, mask);
+        if (!res) {
+            logger::error("subman", "unsubscribe_failed",
+                          {logger::field("code", id.code),
+                           logger::field("error", res.error())});
+        }
     }
     for (const auto&[id, mask] : stdiff.del_subtypes) {
-        call_unsubscribe(id, mask);
+        auto res = call_unsubscribe(id, mask);
+        if (!res) {
+            logger::error("subman", "unsubscribe_failed",
+                          {logger::field("code", id.code),
+                           logger::field("error", res.error())});
+        }
     }
 
     for (const auto&[id, mask] : stdiff.add_subtypes) {
-        call_subscribe(id, mask);
+        auto res = call_subscribe(id, mask);
+        if (!res) {
+            logger::error("subman", "subscribe_failed",
+                          {logger::field("code", id.code),
+                           logger::field("error", res.error())});
+        }
     }
     for (const auto&[id, mask] : stdiff.add_security) {
-        call_subscribe(id, mask);
+        auto res = call_subscribe(id, mask);
+        if (!res) {
+            logger::error("subman", "subscribe_failed",
+                          {logger::field("code", id.code),
+                           logger::field("error", res.error())});
+        }
     }
 }
 
-bool SubscriptionManager::call_subscribe(const SecurityId& id, SubMask mask) {
+std::expected<void, std::string> SubscriptionManager::call_subscribe(const SecurityId& id, SubMask mask) {
+    if (!session_) {
+        return std::unexpected("session not bound");
+    }
     std::vector<Qot_Common::SubType> subtypes;
     mask_to_vec(mask, subtypes);
 
-    return 0 != subscribe_api(id, subtypes);
+    auto sn = subscribe_api(id, subtypes);
+    if (sn == 0) {
+        return std::unexpected("subscribe failed for " + id.code);
+    }
+    return {};
 }
-bool SubscriptionManager::call_unsubscribe(const SecurityId& id, SubMask mask) {
+std::expected<void, std::string> SubscriptionManager::call_unsubscribe(const SecurityId& id, SubMask mask) {
+    if (!session_) {
+        return std::unexpected("session not bound");
+    }
     std::vector<Qot_Common::SubType> unsubtypes;
     mask_to_vec(mask, unsubtypes);
 
-    return 0 != unsubscribe_api(id, unsubtypes);
+    auto sn = unsubscribe_api(id, unsubtypes);
+    if (sn == 0) {
+        return std::unexpected("unsubscribe failed for " + id.code);
+    }
+    return {};
 }
 
 Futu::u32_t SubscriptionManager::subscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs) {
-    std::cout << "[subman] subscribe " << id.code << " subs=" << subs.size() << "\n";
+    logger::info("subman", "subscribe",
+                 {logger::field("code", id.code),
+                  logger::num("subtypes", subs.size())});
     Qot_Sub::Request pbSub;
     Qot_Sub::C2S *pSubC2S = pbSub.mutable_c2s();
 
@@ -289,11 +350,16 @@ Futu::u32_t SubscriptionManager::subscribe_api(const SecurityId& id, const std::
     pSubC2S->set_issuborunsub(true);
     pSubC2S->set_isregorunregpush(true);
     auto sn = session_->sub(pbSub);
-    std::cout << "[subman] sub serial=" << sn
-          << " code=" << id.code << " subs=" << subs.size() << "\n";
+    logger::info("subman", "subscribe_sent",
+                 {logger::num("serial", sn),
+                  logger::field("code", id.code),
+                  logger::num("subtypes", subs.size())});
     return sn;
 }
 Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs) {
+    logger::info("subman", "unsubscribe",
+             {logger::field("code", id.code),
+              logger::num("subtypes", subs.size())});
     Qot_Sub::Request pbSub;
     Qot_Sub::C2S *pSubC2S = pbSub.mutable_c2s();
 
@@ -308,7 +374,12 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
 
     pSubC2S->set_issuborunsub(false);
     pSubC2S->set_isregorunregpush(false);
-    return session_->sub(pbSub);
+    auto sn = session_->sub(pbSub);
+    logger::info("subman", "unsubscribe_sent",
+                 {logger::num("serial", sn),
+                  logger::field("code", id.code),
+                  logger::num("subtyps", subs.size())});
+    return sn;
 }
 
 int64_t SubscriptionManager::now_ns() {

@@ -16,6 +16,9 @@ static void on_sigint(int) { g_stop.store(true, std::memory_order_relaxed); }
 int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
 
+    auto opt = logger::default_options_for("futu_feeder");
+    logger::init(opt);
+
     std::vector<std::unique_ptr<QueuedDownstream>> downstreams;
     downstreams.emplace_back(
         std::make_unique<QueuedDownstream>(
@@ -33,10 +36,13 @@ int main (int argc, char *argv[]) {
 
     namespace fs = std::filesystem;
     fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
-    fs::path default_cfg = exe_dir / "../../../../config/subscriptions.example.yaml";
+    fs::path default_cfg =
+        (exe_dir / "../../../../config/subscriptions.example.yaml")
+        .lexically_normal();
     std::string config_path = (argc > 1) ? argv[1] : default_cfg.string();
     if (!std::filesystem::exists(config_path)) {
-        std::cerr << "[FATAL] config not found: " << config_path << "\n";
+        logger::error("main", "config_not_found",
+                      {logger::field("path", config_path)});
         std::exit(1);
     }
 
@@ -81,7 +87,12 @@ int main (int argc, char *argv[]) {
     subman.bind_session(&session);
 
     std::thread t([&]{
-        session.start("127.0.0.1", 11111);
+        auto start_result = session.start("127.0.0.1", 11111);
+        if (!start_result) {
+            logger::error("main", "session_start_failed",
+              {logger::field("error", start_result.error())});
+g_stop.store(true, std::memory_order_relaxed);
+        }
         subman.run(g_stop);
         session.stop();
     });
