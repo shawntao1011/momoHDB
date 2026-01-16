@@ -8,6 +8,7 @@
 #include "../../../include/config/YamlSubscribeConfigLoader.hpp"
 #include "runtime/Dispatcher.hpp"
 #include "sinks/DemoLogSink.hpp"
+#include "sinks/RedPandaSink.hpp"
 
 static std::atomic<bool> g_stop{false};
 
@@ -20,10 +21,12 @@ int main (int argc, char *argv[]) {
     logger::init(opt);
 
     std::vector<std::unique_ptr<QueuedDownstream>> downstreams;
+    RedPandaSink::Options opts;
+    opts.brokers = "ip:9092";
     downstreams.emplace_back(
         std::make_unique<QueuedDownstream>(
         "redpanda-prod",
-        std::make_unique<DemoLogSink>("redpanda-prod"),
+        std::make_unique<RedPandaSink>("redpanda-prod", std::move(opts)),
         8192   // capacity, DROP_OLDEST
         )
     );

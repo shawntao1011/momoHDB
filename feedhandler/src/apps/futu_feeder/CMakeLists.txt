@@ -8,4 +8,5 @@ target_link_libraries(futu_feeder
         feedhandler::common
         futu_core
         runtime
+        feedhandler::sinks
 )
