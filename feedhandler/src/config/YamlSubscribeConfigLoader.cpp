@@ -42,11 +42,17 @@ std::expected<SubscribeConfig, std::string>   YamlSubscribeConfigLoader::load(co
 
         SecuritySpec spec;
         const std::string symbol = sym.as<std::string>();
-        parse_security(symbol, spec.market, spec.code);
+        auto parsed_security = parse_security(symbol, spec.market, spec.code);
+        if (!parsed_security) {
+            return std::unexpected(parsed_security.error());
+        }
 
         if (auto st = item["subtypes"]) {
             std::string err;
-            parse_security_subtypes(st, spec.subtypes);
+            auto parsed_subtypes = parse_security_subtypes(st, spec.subtypes);
+            if (!parsed_subtypes) {
+                return std::unexpected(parsed_subtypes.error());
+            }
         } else {
             spec.subtypes = cfg.default_subtypes;
         }
