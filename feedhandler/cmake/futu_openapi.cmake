@@ -67,7 +67,7 @@ set_target_properties(futu_openapi_protobuf PROPERTIES
 )
 
 add_library(futu_openapi INTERFACE
-        ../include/config/YamlSubscribeConfigLoader.hpp)
+        ../include/config/SubscriptionLoader.hpp)
 target_link_libraries(futu_openapi INTERFACE
   futu_openapi_ftapi
   futu_openapi_channel

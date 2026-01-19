@@ -3,9 +3,9 @@
 #include <expected>
 #include <yaml-cpp/yaml.h>
 
-class YamlSubscribeConfigLoader {
+class SubscriptionLoader {
 public:
-    explicit YamlSubscribeConfigLoader();
+    explicit SubscriptionLoader();
 
     std::expected<SubscribeConfig, std::string> load(const std::string& path) const;
 

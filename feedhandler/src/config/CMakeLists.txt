@@ -1,5 +1,5 @@
 add_library(config STATIC
-        YamlSubscribeConfigLoader.cpp
+        SubscriptionLoader.cpp
 )
 
 target_include_directories(config
