@@ -1,0 +1,31 @@
+version: 1
+
+logger:
+  name: "futu_feeder"         # default_options_for(name)
+  level: "info"               # debug/info/warn/error
+  console: true               # also_console
+  file: "logs/futu_feeder.jsonl" # file_path
+  queue_size: 65536
+  worker_threads: 1
+  overflow: "drop"            # drop | block   (drop=overrun_oldest)
+  flush_on: "warn"            # debug/info/warn/error (spdlog level)
+
+futu:
+  opend_ip: "127.0.0.1"
+  opend_port: 11111
+
+subscriptions:
+  path: "subscriptions.example.yaml"
+  refresh_ms: 5000
+
+downstreams:
+  - name: "redpanda-example"
+    queue:
+      capacity: 8192
+      overflow: "drop_oldest"
+    type: "redpanda"
+    redpanda:
+      brokers: "192.168.1.1:9092"
+      client_id: "futu-feedhandler"
+      compression: "lz4"
+      acks: "all"
