@@ -13,7 +13,7 @@
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
 #include "common/SPSCRing.hpp"
-#include "../sinks/Sink.hpp"
+#include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
 

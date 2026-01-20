@@ -1,8 +1,8 @@
-#include "../../include/config/SubscriptionLoader.hpp"
+#include "config/SubscriptionLoader.hpp"
 
 cfg::SubscriptionLoader::SubscriptionLoader() = default;
 
-std::expected<SubscribeConfig, std::string>   cfg::SubscriptionLoader::load(const std::string& path) const {
+std::expected<SubscribeConfig, std::string> cfg::SubscriptionLoader::load(const std::string& path) const {
     YAML::Node root;
     try {
         root = YAML::LoadFile(path);
@@ -28,12 +28,18 @@ std::expected<SubscribeConfig, std::string>   cfg::SubscriptionLoader::load(cons
     }
 
     auto secs = root["securities"];
-    cfg.securities.reserve((secs.size()));
+    if (!secs || !secs.IsSequence()) {
+        return std::unexpected("securities must be a sequence");
+    }
+    cfg.securities.reserve(secs.size());
 
     for (std::size_t i = 0; i < secs.size(); ++i) {
         const auto item = secs[i];
 
         auto sym = item["symbol"];
+        if (!sym || !sym.IsScalar()) {
+            return std::unexpected("security symbol must be a scalar");
+        }
 
         SecuritySpec spec;
         const std::string symbol = sym.as<std::string>();
@@ -43,7 +49,6 @@ std::expected<SubscribeConfig, std::string>   cfg::SubscriptionLoader::load(cons
         }
 
         if (auto st = item["subtypes"]) {
-            std::string err;
             auto parsed_subtypes = parse_security_subtypes(st, spec.subtypes);
             if (!parsed_subtypes) {
                 return std::unexpected(parsed_subtypes.error());

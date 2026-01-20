@@ -15,7 +15,7 @@ namespace cfg {
 
         throw std::runtime_error(
         "invalid overflow policy: '" + std::string(s) +
-        "' (expected: block | drop_oldest | drop_newest)"
+        "' (expected: block | drop_oldest )"
         );
     }
 

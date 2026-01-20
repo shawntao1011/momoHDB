@@ -5,7 +5,7 @@
 #include <thread>
 #include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/SubscriptionManager.hpp"
-#include "../../../include/config/SubscriptionLoader.hpp"
+#include "config/SubscriptionLoader.hpp"
 #include "config/ConfigLoader.hpp"
 #include "runtime/Dispatcher.hpp"
 #include "sinks/DemoLogSink.hpp"

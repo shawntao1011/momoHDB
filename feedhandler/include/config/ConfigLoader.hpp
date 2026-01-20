@@ -4,7 +4,6 @@
 
 #include "Config.hpp"
 #include "ConfigError.hpp"
-#include "common/JsonLogger.hpp"
 
 namespace cfg {
 

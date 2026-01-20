@@ -53,6 +53,5 @@ private:
     void dispatch(std::shared_ptr<const Envelope> e);
     void flush_all(int  timeout_ms);
 
-    mutable std::shared_mutex mu_;
     std::vector<std::unique_ptr<QueuedDownstream>> downstreams_;
 };

@@ -18,6 +18,31 @@ static std::size_t next_pow2(std::size_t v) {
     return p;
 }
 
+static std::string market_prefix(int market) {
+    // Prefer human-friendly keys like HK.00700 / US.AAPL / SH.600519.
+    const std::string name = Qot_Common::QotMarket_Name(
+        static_cast<Qot_Common::QotMarket>(market)
+    );
+    constexpr std::string_view prefix = "QotMarket_";
+    constexpr std::string_view suffix = "_Security";
+
+    if (!name.starts_with(prefix) || !name.ends_with(suffix)) {
+        return name; //fallback
+    }
+    const auto begin = prefix.size();
+    const auto len   = name.size() - prefix.size() - suffix.size();
+
+    if (len == 0) {
+        return name; //fallback
+    }
+
+    return name.substr(begin, len);
+}
+
+static std::string make_key(int market, const std::string& code) {
+    return market_prefix(market) + "." + code;
+}
+
 SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
     , inbox_(next_pow2(opts.capacity))
@@ -47,7 +72,8 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
 
     Envelope e;
     e.topic = "futu.basicqot.pb";
-    e.key = stRsp.s2c().basicqotlist(0).security().code();
+    const auto& sec = stRsp.s2c().basicqotlist(0).security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -60,7 +86,8 @@ void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response 
 {
     Envelope e;
     e.topic = "futu.orderbook.pb";
-    e.key = stRsp.s2c().security().code();
+    const auto& sec = stRsp.s2c().security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -73,7 +100,8 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
 {
     Envelope e;
     e.topic = "futu.ticker.pb";
-    e.key = stRsp.s2c().security().code();
+    const auto& sec = stRsp.s2c().security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -86,7 +114,8 @@ void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
 {
     Envelope e;
     e.topic = "futu.kl_1m.pb";
-    e.key = stRsp.s2c().security().code();
+    const auto& sec = stRsp.s2c().security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -99,7 +128,8 @@ void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
 {
     Envelope e;
     e.topic = "futu.rt.pb";
-    e.key = stRsp.s2c().security().code();
+    const auto& sec = stRsp.s2c().security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -112,7 +142,8 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
 {
     Envelope e;
     e.topic = "futu.broker.pb";
-    e.key = stRsp.s2c().security().code();
+    const auto& sec = stRsp.s2c().security();
+    e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -392,7 +423,7 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
 
 int64_t SubscriptionManager::now_ns() {
     using namespace std::chrono;
-    return duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+    return duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 bool SubscriptionManager::enqueue(Envelope&& e) {

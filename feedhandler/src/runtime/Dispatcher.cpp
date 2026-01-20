@@ -59,7 +59,6 @@ Dispatcher::~Dispatcher() {
 void Dispatcher::add_downstream(std::string name, std::unique_ptr<ISink> sink) {
     auto ds = std::make_unique<QueuedDownstream>(std::move(name), std::move(sink));
     {
-        std::unique_lock lk(mu_);
         downstreams_.push_back(std::move(ds));
         downstreams_.back()->start();
     }

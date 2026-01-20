@@ -18,7 +18,6 @@
 #include <filesystem>
 
 #include "config/Config.hpp"
-#include "config/ConfigLoader.hpp"
 
 namespace logger {
 
@@ -277,10 +276,15 @@ private:
 // logger options and helper
 // ------------------------------
 inline Level parse_level(std::string_view s) {
-    if (s == "debug") return Level::Debug;
-    if (s == "info")  return Level::Info;
-    if (s == "warn")  return Level::Warn;
-    if (s == "error") return Level::Error;
+    auto lower = [](unsigned char c) { return static_cast<char>(std::tolower(c)); };
+    std::string tmp;
+    tmp.reserve(s.size());
+    for (unsigned char c : std::string(s)) tmp.push_back(lower(c));
+
+    if (tmp == "debug") return Level::Debug;
+    if (tmp == "info")  return Level::Info;
+    if (tmp == "warn" || tmp == "warning") return Level::Warn;
+    if (tmp == "error" || tmp == "err") return Level::Error;
     return Level::Info;
 }
 
