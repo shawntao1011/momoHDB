@@ -1,14 +1,13 @@
 version: 1
 
 logger:
-  name: "futu_feeder"         # default_options_for(name)
-  level: "info"               # debug/info/warn/error
-  console: true               # also_console
-  file: "logs/futu_feeder.jsonl" # file_path
+  level: "info"
+  also_console: true
+  file: "logs/futu_feeder.jsonl"
   queue_size: 65536
   worker_threads: 1
-  overflow: "drop"            # drop | block   (drop=overrun_oldest)
-  flush_on: "warn"            # debug/info/warn/error (spdlog level)
+  overflow: "drop_oldest"
+  flush_on: "warn"
 
 futu:
   opend_ip: "127.0.0.1"
@@ -16,13 +15,14 @@ futu:
 
 subscriptions:
   path: "subscriptions.example.yaml"
+
+subscriptionmanager:
+  capacity: 8192
   refresh_ms: 5000
+  overflow: "drop_oldest"
 
 downstreams:
   - name: "redpanda-example"
-    queue:
-      capacity: 8192
-      overflow: "drop_oldest"
     type: "redpanda"
     redpanda:
       brokers: "192.168.1.1:9092"

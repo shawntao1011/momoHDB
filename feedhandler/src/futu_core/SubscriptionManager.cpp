@@ -11,7 +11,7 @@
 
 #include "common/JsonLogger.hpp"
 
-SubscriptionManager::SubscriptionManager(Sink sink, ConfigLoaderFn cfgloader, Options opts)
+SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
     , cfgloader_(cfgloader)
     , opts_(opts)
@@ -192,7 +192,7 @@ std::expected<bool, std::string> SubscriptionManager::load_if_changed() {
         return std::unexpected("no config loader set");
     }
     std::error_code ec;
-    auto mtime = std::filesystem::last_write_time(opts_.config_path,  ec);
+    auto mtime = std::filesystem::last_write_time(opts_.subscription_path,  ec);
     if (ec) {
         return std::unexpected("last_write_time failed: " + ec.message());
     }
@@ -200,9 +200,9 @@ std::expected<bool, std::string> SubscriptionManager::load_if_changed() {
     if (has_current_ && mtime == last_mtime_) return false;
 
     logger::info("subman", "load_mtime_ok",
-                 {logger::field("path", opts_.config_path)});
+                 {logger::field("path", opts_.subscription_path)});
 
-    auto cfg_result = cfgloader_(opts_.config_path);
+    auto cfg_result = cfgloader_(opts_.subscription_path);
     if (!cfg_result) {
         return std::unexpected(cfg_result.error());
     }

@@ -1,9 +1,10 @@
 #include "runtime/Dispatcher.hpp"
 
-QueuedDownstream::QueuedDownstream(std::string name, std::unique_ptr<ISink> sink, std::size_t cap_pow2)
+#include <mutex>
+
+QueuedDownstream::QueuedDownstream(std::string name, std::unique_ptr<ISink> sink)
     : name_(std::move(name))
     , sink_(std::move(sink))
-    , q_(cap_pow2)
 {}
 
 void QueuedDownstream::start() {
@@ -42,16 +43,25 @@ void QueuedDownstream::loop() {
     }
 }
 
+Dispatcher::Dispatcher() = default;
 Dispatcher::Dispatcher(std::vector<std::unique_ptr<QueuedDownstream>> downstreams)
     : downstreams_(std::move(downstreams))
 {
-    for (auto& ds : downstreams_) {
-        ds->start();
-    }
+    for (auto& ds : downstreams_) ds->start();
 }
+
 Dispatcher::~Dispatcher() {
     for (auto& ds : downstreams_) {
         ds->stop();
+    }
+}
+
+void Dispatcher::add_downstream(std::string name, std::unique_ptr<ISink> sink) {
+    auto ds = std::make_unique<QueuedDownstream>(std::move(name), std::move(sink));
+    {
+        std::unique_lock lk(mu_);
+        downstreams_.push_back(std::move(ds));
+        downstreams_.back()->start();
     }
 }
 

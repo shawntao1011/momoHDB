@@ -1,5 +1,4 @@
 version: 1
-refresh_ms: 5000
 
 defaults:
   subtypes:

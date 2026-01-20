@@ -17,12 +17,16 @@
 #include <fmt/format.h>
 #include <filesystem>
 
+#include "config/Config.hpp"
+#include "config/ConfigLoader.hpp"
+
 namespace logger {
 
 // ------------------------------
 // Public types
 // ------------------------------
 enum class Level : std::uint8_t { Debug, Info, Warn, Error };
+Level parse_level(std::string_view s);
 
 enum class OverflowPolicy : std::uint8_t {
     // Never block producer threads; if queue is full, drop oldest log lines.
@@ -155,26 +159,26 @@ public:
     }
 
     // Call once early in main() before spawning your hot threads.
-    void init(const Options& opt) {
+    void init(const cfg::LoggerCfg& cfg) {
         bool expected = false;
         if (!inited_.compare_exchange_strong(expected, true)) return;
 
         // thread pool for async
-        spdlog::init_thread_pool(opt.queue_size, opt.worker_threads);
+        spdlog::init_thread_pool(cfg.queue_size, cfg.worker_threads);
 
-        std::filesystem::create_directories(std::filesystem::path(opt.file_path).parent_path());
+        std::filesystem::create_directories(std::filesystem::path(cfg.file_path).parent_path());
 
         // sinks
-        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(opt.file_path, /*truncate=*/false);
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(cfg.file_path, /*truncate=*/false);
         sinks_.clear();
         sinks_.push_back(file_sink);
 
-        if (opt.also_console) {
+        if (cfg.also_console) {
             auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             sinks_.push_back(console_sink);
         }
 
-        auto overflow = (opt.overflow == OverflowPolicy::Block)
+        auto overflow = (cfg.overflow == cfg::OverflowPolicy::Block)
             ? spdlog::async_overflow_policy::block
             : spdlog::async_overflow_policy::overrun_oldest;
 
@@ -186,8 +190,8 @@ public:
             overflow
         );
 
-        logger_->set_level(detail::to_spd(opt.level));
-        logger_->flush_on(opt.flush_on);
+        logger_->set_level(detail::to_spd(logger::parse_level(cfg.level)));
+        logger_->flush_on(detail::to_spd(parse_level(cfg.flush_on)));
 
         spdlog::register_logger(logger_);
     }
@@ -319,7 +323,7 @@ inline JsonLogger::Options default_options_for(std::string_view app_name) {
 // ------------------------------
 // Free functions (nice call sites)
 // ------------------------------
-inline void init(const JsonLogger::Options& opt) { JsonLogger::instance().init(opt); }
+inline void init(const cfg::LoggerCfg cfg) { JsonLogger::instance().init(cfg); }
 inline void shutdown() { JsonLogger::instance().shutdown(); }
 inline void set_level(Level lv) { JsonLogger::instance().set_level(lv); }
 

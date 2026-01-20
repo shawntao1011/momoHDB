@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+namespace cfg {
+
 struct ConfigError {
     std::string file;
     std::string path;
@@ -10,3 +12,5 @@ struct ConfigError {
 inline std::string to_string(const ConfigError& e) {
     return e.file + ":" + e.path + " -> " + e.message;
 }
+
+} // namespace cfg

@@ -15,17 +15,17 @@
 #include "common/SPSCRing.hpp"
 #include "../sinks/Sink.hpp"
 
-using ConfigLoaderFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
+using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
 
 class SubscriptionManager {
   public:
     struct Options {
-        std::string config_path;
+        std::string subscription_path;
         std::chrono::milliseconds refresh_interval{5000};
     };
 
     SubscriptionManager(Sink sink,
-        ConfigLoaderFn cfgloader,
+        SubscriptionLoadFn cfgloader,
         Options opts);
 
     void bind_session(FutuQuoteSession* s) { session_ = s; };
@@ -65,9 +65,9 @@ private:
 private:
     Sink sink_;
     FutuQuoteSession* session_{nullptr};
-    SPSCRing<Envelope> inbox_{1u << 16};
+    queue::SPSCRing<Envelope> inbox_{1u << 16};
 
-    ConfigLoaderFn cfgloader_{nullptr};
+    SubscriptionLoadFn cfgloader_{nullptr};
     Options opts_;
 
     std::atomic<bool> connected_{false};

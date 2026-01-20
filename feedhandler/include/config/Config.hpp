@@ -1,7 +1,27 @@
+# pragma once
 #include <cstdint>
 #include <string>
 #include <variant>
 #include <vector>
+
+#include "OverflowPolicy.hpp"
+
+namespace cfg {
+
+// ---------- logger ----------
+struct LoggerCfg {
+    std::string file_path{"logs/app.jsonl"};
+    bool also_console{true};
+    std::string level{"Info"};
+
+    std::size_t queue_size{1u << 16};
+    std::size_t worker_threads{1};
+    OverflowPolicy overflow{OverflowPolicy::DropOldest};
+
+    bool json{true};
+
+    std::string flush_on{"warn"};
+};
 
 // ---------- session ----------
 struct FutuSessionCfg {
@@ -12,16 +32,11 @@ struct FutuSessionCfg {
 // ---------- subscription ----------
 struct SubscriptionCfg {
     std::string path;
-    int refresh_ms{5000};
 };
 
 // ---------- queue ----------
-enum class OverflowPolicy {
-    DropOldest,
-    Block
-};
-
-struct QueueCfg {
+struct SubscriptionManagerCfg {
+    int refresh_ms{5000};
     std::size_t capacity{1024};
     OverflowPolicy overflow{OverflowPolicy::DropOldest};
 };
@@ -40,13 +55,16 @@ using SinkCfg = std::variant<RedpandaSinkCfg, DemoLogSinkCfg>;
 
 struct DownstreamCfg {
     std::string name;
-    QueueCfg queue;
     SinkCfg sink;
 };
 
 // ---------- app ----------
 struct AppConfig {
+    LoggerCfg logger;
     FutuSessionCfg futu;
     SubscriptionCfg subscription;
+    SubscriptionManagerCfg submanager;
     std::vector<DownstreamCfg> downstreams;
 };
+
+} // namespace cfg

@@ -5,6 +5,13 @@
 #include <type_traits>
 #include <vector>
 
+namespace queue {
+
+enum class OverflowPolicy {
+    Block,
+    DropOldest,
+};
+
 template <class T>
 class SPSCRing {
 public:
@@ -82,3 +89,5 @@ private:
     alignas(64) std::atomic<std::size_t> head_{0};
     alignas(64) std::atomic<std::size_t> tail_{0};
 };
+
+} //namespace queue

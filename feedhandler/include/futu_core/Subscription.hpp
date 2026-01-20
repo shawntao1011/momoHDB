@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include "Proto/Qot_Common.pb.h"
 
@@ -30,7 +31,6 @@ struct SecuritySpec {
 
 struct SubscribeConfig {
     int version;
-    int refresh_ms{5000};
 
     std::vector<Qot_Common::SubType> default_subtypes;
     std::vector<SecuritySpec> securities;

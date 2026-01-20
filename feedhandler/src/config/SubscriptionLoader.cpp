@@ -1,9 +1,8 @@
 #include "../../include/config/SubscriptionLoader.hpp"
 
-SubscriptionLoader::SubscriptionLoader()
-{}
+cfg::SubscriptionLoader::SubscriptionLoader() = default;
 
-std::expected<SubscribeConfig, std::string>   SubscriptionLoader::load(const std::string& path) const {
+std::expected<SubscribeConfig, std::string>   cfg::SubscriptionLoader::load(const std::string& path) const {
     YAML::Node root;
     try {
         root = YAML::LoadFile(path);
@@ -15,10 +14,6 @@ std::expected<SubscribeConfig, std::string>   SubscriptionLoader::load(const std
 
     if (auto v = root["version"]) {
         if (v.IsScalar()) cfg.version = v.as<int>();
-    }
-
-    if (auto r = root["refresh_ms"]) {
-        if (r.IsScalar()) cfg.refresh_ms = r.as<int>();
     }
 
     if (auto d = root["defaults"]) {
@@ -63,7 +58,7 @@ std::expected<SubscribeConfig, std::string>   SubscriptionLoader::load(const std
     return cfg;
 }
 
-std::expected<void, std::string> SubscriptionLoader::parse_security(const std::string& symbol, // HK.00700
+std::expected<void, std::string> cfg::SubscriptionLoader::parse_security(const std::string& symbol, // HK.00700
         Qot_Common::QotMarket& market_out, // HK -> Qot_Common::QotMarket_HK_Security
         std::string& code_out) const {
     auto pos = symbol.find('.');
@@ -85,7 +80,7 @@ std::expected<void, std::string> SubscriptionLoader::parse_security(const std::s
     return {};
 }
 
-std::expected<void, std::string> SubscriptionLoader::parse_market(const std::string& s, Qot_Common::QotMarket& out) const {
+std::expected<void, std::string> cfg::SubscriptionLoader::parse_market(const std::string& s, Qot_Common::QotMarket& out) const {
     if (s == "HK") { out = Qot_Common::QotMarket_HK_Security; return {}; }
     if (s == "US") { out = Qot_Common::QotMarket_US_Security; return {}; }
     if (s == "SH") { out = Qot_Common::QotMarket_CNSH_Security; return {}; }
@@ -93,12 +88,12 @@ std::expected<void, std::string> SubscriptionLoader::parse_market(const std::str
     return std::unexpected("unknown market: " + s);
 }
 
-std::expected<void, std::string> SubscriptionLoader::parse_code(const std::string& s, std::string& code) const {
+std::expected<void, std::string> cfg::SubscriptionLoader::parse_code(const std::string& s, std::string& code) const {
     code = s;
     return {};
 }
 
-std::expected<void, std::string> SubscriptionLoader::parse_subtype(const std::string& s, Qot_Common::SubType& out)  const {
+std::expected<void, std::string> cfg::SubscriptionLoader::parse_subtype(const std::string& s, Qot_Common::SubType& out)  const {
     if (s == "BasicQot") { out = Qot_Common::SubType_Basic; return {}; }
     if (s == "OrderBook" ) { out = Qot_Common::SubType_OrderBook; return {}; }
     if (s == "Ticker") { out = Qot_Common::SubType_Ticker; return {}; }
@@ -108,7 +103,7 @@ std::expected<void, std::string> SubscriptionLoader::parse_subtype(const std::st
     return std::unexpected("unknown subtype: " + s);
 }
 
-std::expected<void, std::string> SubscriptionLoader::parse_security_subtypes(const YAML::Node& node,
+std::expected<void, std::string> cfg::SubscriptionLoader::parse_security_subtypes(const YAML::Node& node,
         std::vector<Qot_Common::SubType>& subtypes) const {
     subtypes.clear();
     if (!node) return std::unexpected("subtypes node missing");

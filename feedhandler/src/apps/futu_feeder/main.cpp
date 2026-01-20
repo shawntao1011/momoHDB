@@ -6,57 +6,75 @@
 #include "futu_core/FutuQuoteSession.hpp"
 #include "futu_core/SubscriptionManager.hpp"
 #include "../../../include/config/SubscriptionLoader.hpp"
+#include "config/ConfigLoader.hpp"
 #include "runtime/Dispatcher.hpp"
 #include "sinks/DemoLogSink.hpp"
 #include "sinks/RedPandaSink.hpp"
 
 static std::atomic<bool> g_stop{false};
-
 static void on_sigint(int) { g_stop.store(true, std::memory_order_relaxed); }
+
+static std::size_t next_pow2(std::size_t v) {
+    if (v < 2) return 2;
+    std::size_t p = 1;
+    while (p < v) p <<= 1;
+    return p;
+}
 
 int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
 
-    auto opt = logger::default_options_for("futu_feeder");
-    logger::init(opt);
-
-    std::vector<std::unique_ptr<QueuedDownstream>> downstreams;
-    RedPandaSink::Options opts;
-    opts.brokers = "ip:9092";
-    downstreams.emplace_back(
-        std::make_unique<QueuedDownstream>(
-        "redpanda-prod",
-        std::make_unique<RedPandaSink>("redpanda-prod", std::move(opts)),
-        8192   // capacity, DROP_OLDEST
-        )
-    );
-    Dispatcher dispatcher(std::move(downstreams));
-
-    Sink sink;
-    sink.ctx = &dispatcher;
-    sink.submit = &Dispatcher::submit;
-    sink.flush = &Dispatcher::flush;
-
     namespace fs = std::filesystem;
     fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
     fs::path default_cfg =
-        (exe_dir / "../../../../config/subscriptions.example.yaml")
+        (exe_dir / "../../../../config/apps.example.yaml")
         .lexically_normal();
     std::string config_path = (argc > 1) ? argv[1] : default_cfg.string();
     if (!std::filesystem::exists(config_path)) {
-        logger::error("main", "config_not_found",
-                      {logger::field("path", config_path)});
-        std::exit(1);
+        std::cerr << "[FATAL] config_not_found: " << config_path << "\n";
+        return 1;
     }
 
-    SubscriptionLoader cfgloader;
+    auto cfg_res = cfg::ConfigLoader::load(config_path);
+    if (!cfg_res) {
+        std::cerr << "[FATAL] " << to_string(cfg_res.error()) << "\n";
+        return 1;
+    }
+    auto& cfg = cfg_res.value();
+
+    // logger
+    logger::init(cfg.logger);
+
+    Dispatcher dispatcher;
+
+    for (const auto& ds : cfg.downstreams) {
+        if (std::holds_alternative<cfg::RedpandaSinkCfg>(ds.sink)) {
+            const auto& rc = std::get<cfg::RedpandaSinkCfg>(ds.sink);
+
+            RedPandaSink::Options opts;
+            opts.brokers = rc.brokers;
+            opts.acks = rc.acks;
+
+            dispatcher.add_downstream(
+                ds.name,
+                std::make_unique<RedPandaSink>(ds.name, opts));
+        }
+    }
+
+    Sink sink{
+        .ctx = &dispatcher,
+        .submit = &Dispatcher::submit,
+        .flush = &Dispatcher::flush
+    };
+
+    cfg::SubscriptionLoader subsloader;
 
     SubscriptionManager subman(sink,
-    [&](const std::string& path) { return cfgloader.load(path); },
+        [&](const std::string& path) { return subsloader.load(path); },
         SubscriptionManager::Options
         {
-            config_path,
-            std::chrono::milliseconds(5000)
+            cfg.subscription.path,
+            std::chrono::milliseconds{cfg.submanager.refresh_ms}
         });
    
     SessionCallbacks cbs;
@@ -90,11 +108,11 @@ int main (int argc, char *argv[]) {
     subman.bind_session(&session);
 
     std::thread t([&]{
-        auto start_result = session.start("127.0.0.1", 11111);
+        auto start_result = session.start(cfg.futu.opend_ip.c_str(), cfg.futu.opend_port);
         if (!start_result) {
             logger::error("main", "session_start_failed",
               {logger::field("error", start_result.error())});
-g_stop.store(true, std::memory_order_relaxed);
+            g_stop.store(true, std::memory_order_relaxed);
         }
         subman.run(g_stop);
         session.stop();
@@ -105,5 +123,6 @@ g_stop.store(true, std::memory_order_relaxed);
     }
 
     t.join();
+
     return 0;
 }

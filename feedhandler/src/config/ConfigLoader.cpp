@@ -1,37 +1,61 @@
-#pragma once
-#include "config/AppConfigLoader.hpp"
+#include "config/ConfigLoader.hpp"
 
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
 
+#include "common/JsonLogger.hpp"
+#include "common/SPSCRing.hpp"
+
 namespace fs = std::filesystem;
 
-static std::expected<std::string, ConfigError>
+static std::expected<std::string, cfg::ConfigError>
 require_scalar(const YAML::Node& n,
                const std::string& file,
                const std::string& path) {
     if (!n || !n.IsScalar()) {
-        return std::unexpected(ConfigError{file, path, "required scalar missing"});
+        return std::unexpected(cfg::ConfigError{file, path, "required scalar missing"});
     }
     return n.as<std::string>();
 }
 
-static OverflowPolicy parse_overflow(const std::string& s) {
-    if (s == "block") return OverflowPolicy::Block;
-    return OverflowPolicy::DropOldest;
+static logger::OverflowPolicy to_logger_overflow(cfg::OverflowPolicy p) {
+    switch (p) {
+        case cfg::OverflowPolicy::Block: return logger::OverflowPolicy::Block;
+        case cfg::OverflowPolicy::DropOldest: return logger::OverflowPolicy::OverrunOldest;
+    }
+    std::abort();
 }
 
-std::expected<AppConfig, ConfigError>
-    AppConfigLoader::load(const std::string& path) {
+static queue::OverflowPolicy to_queue_overflow(cfg::OverflowPolicy p) {
+    switch (p) {
+        case cfg::OverflowPolicy::Block: return queue::OverflowPolicy::Block;
+        case cfg::OverflowPolicy::DropOldest: return queue::OverflowPolicy::DropOldest;
+    }
+    std::abort();
+}
+
+std::expected<cfg::AppConfig, cfg::ConfigError>
+cfg::ConfigLoader::load(const std::string& path) {
     YAML::Node root;
     try {
         root = YAML::LoadFile(path);
     } catch (...) {
-        return std::unexpected(ConfigError{path, "", "failed to load yaml"});
+        return std::unexpected(cfg::ConfigError{path, "", "failed to load yaml"});
     }
 
-    AppConfig cfg;
+    cfg::AppConfig cfg;
     fs::path base_dir = fs::absolute(fs::path(path)).parent_path();
+
+    // -------- json logger --------
+    {
+        auto n = root["logger"];
+        if (!n || !n.IsMap())
+            return std::unexpected(ConfigError{path, "logger", "missing logger section"});
+
+        cfg.logger.level = n["level"].as<std::string>("info");
+        cfg.logger.also_console = n["also_console"].as<bool>(true);
+        cfg.logger.file_path = n["path"].as<std::string>("logs/futu_feeder.log");
+    }
 
     // -------- futu session --------
     {
@@ -49,13 +73,23 @@ std::expected<AppConfig, ConfigError>
     {
         auto n = root["subscriptions"];
         if (!n || !n.IsMap())
-            return std::unexpected(ConfigError{path, "subscriptions", "missing section"});
+            return std::unexpected(ConfigError{path, "subscriptions", "missing subscription section"});
 
         auto p = require_scalar(n["path"], path, "subscriptions.path").value();
         cfg.subscription.path = (base_dir / p).string();
 
-        if (n["refresh_ms"])
-            cfg.subscription.refresh_ms = n["refresh_ms"].as<int>();
+    }
+
+    // -------- subscription manager --------
+    {
+        auto n = root["subscriptionmanager"];
+        if (!n || !n.IsMap())
+            return std::unexpected(ConfigError{path, "submanager", "missing subscription manager section"});
+
+        cfg.submanager.refresh_ms = n["refresh_ms"].as<int>();
+        cfg.submanager.capacity =n["capacity"].as<std::size_t>(1024);
+        cfg.submanager.overflow =
+            parse_overflow(n["overflow"].as<std::string>("drop_oldest"));
     }
 
     // -------- downstreams --------
@@ -69,12 +103,6 @@ std::expected<AppConfig, ConfigError>
 
         DownstreamCfg ds;
         ds.name = require_scalar(d["name"], path, base + ".name").value();
-
-        // queue
-        auto q = d["queue"];
-        ds.queue.capacity = q["capacity"].as<std::size_t>(1024);
-        ds.queue.overflow =
-            parse_overflow(q["overflow"].as<std::string>("drop_oldest"));
 
         // sink
         auto type = require_scalar(d["type"], path, base + ".type").value();
