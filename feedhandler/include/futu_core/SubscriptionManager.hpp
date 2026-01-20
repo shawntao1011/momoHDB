@@ -22,6 +22,8 @@ class SubscriptionManager {
     struct Options {
         std::string subscription_path;
         std::chrono::milliseconds refresh_interval{5000};
+        std::size_t capacity{8192};
+        queue::OverflowPolicy overflow{queue::OverflowPolicy::DropOldest};
     };
 
     SubscriptionManager(Sink sink,
@@ -61,6 +63,7 @@ private:
     Futu::u32_t unsubscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs);
 
     static int64_t now_ns();
+    bool enqueue(Envelope&& e);
 
 private:
     Sink sink_;

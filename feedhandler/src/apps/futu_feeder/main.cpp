@@ -14,11 +14,12 @@
 static std::atomic<bool> g_stop{false};
 static void on_sigint(int) { g_stop.store(true, std::memory_order_relaxed); }
 
-static std::size_t next_pow2(std::size_t v) {
-    if (v < 2) return 2;
-    std::size_t p = 1;
-    while (p < v) p <<= 1;
-    return p;
+static queue::OverflowPolicy to_queue_overflow(cfg::OverflowPolicy p) {
+    switch (p) {
+        case cfg::OverflowPolicy::Block: return queue::OverflowPolicy::Block;
+        case cfg::OverflowPolicy::DropOldest: return queue::OverflowPolicy::DropOldest;
+    }
+    std::abort();
 }
 
 int main (int argc, char *argv[]) {
@@ -27,7 +28,7 @@ int main (int argc, char *argv[]) {
     namespace fs = std::filesystem;
     fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
     fs::path default_cfg =
-        (exe_dir / "../../../../config/apps.example.yaml")
+        (exe_dir / "../../../../config/apps.default.yaml")
         .lexically_normal();
     std::string config_path = (argc > 1) ? argv[1] : default_cfg.string();
     if (!std::filesystem::exists(config_path)) {
@@ -74,7 +75,9 @@ int main (int argc, char *argv[]) {
         SubscriptionManager::Options
         {
             cfg.subscription.path,
-            std::chrono::milliseconds{cfg.submanager.refresh_ms}
+            std::chrono::milliseconds{cfg.submanager.refresh_ms},
+            cfg.submanager.capacity,
+            to_queue_overflow(cfg.submanager.overflow)
         });
    
     SessionCallbacks cbs;

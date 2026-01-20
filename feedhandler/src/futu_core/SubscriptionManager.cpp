@@ -11,8 +11,16 @@
 
 #include "common/JsonLogger.hpp"
 
+static std::size_t next_pow2(std::size_t v) {
+    if (v < 2) return 2;
+    std::size_t p = 1;
+    while (p < v) p <<= 1;
+    return p;
+}
+
 SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
+    , inbox_(next_pow2(opts.capacity))
     , cfgloader_(cfgloader)
     , opts_(opts)
 {}
@@ -35,7 +43,7 @@ void SubscriptionManager::on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Res
 void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &stRsp)
 {
     const Qot_UpdateBasicQot::S2C &pbS2C = stRsp.s2c();
-    if (pbS2C.basicqotlist_size() <= 0) return;;
+    if (pbS2C.basicqotlist_size() <= 0) return;
 
     Envelope e;
     e.topic = "futu.basicqot.pb";
@@ -46,7 +54,7 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response &stRsp)
 {
@@ -59,7 +67,7 @@ void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response 
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp)
 {
@@ -72,7 +80,7 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
 {
@@ -85,7 +93,7 @@ void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
 {
@@ -98,7 +106,7 @@ void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp)
 {
@@ -111,7 +119,7 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
         return;
     }
 
-    inbox_.try_push(std::move(e));
+    enqueue(std::move(e));
 }
 
 void SubscriptionManager::run(std::atomic<bool> &stop) {
@@ -385,4 +393,19 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
 int64_t SubscriptionManager::now_ns() {
     using namespace std::chrono;
     return duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
+bool SubscriptionManager::enqueue(Envelope&& e) {
+    if (inbox_.try_push(std::move(e))) {
+        return true;
+    }
+    if (opts_.overflow == queue::OverflowPolicy::DropOldest) {
+        Envelope dropped;
+        (void)inbox_.try_pop(dropped);
+        return inbox_.try_push(std::move(e));
+    }
+    while (!inbox_.try_push(std::move(e))) {
+        std::this_thread::yield();
+    }
+    return true;
 }

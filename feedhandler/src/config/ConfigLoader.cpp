@@ -18,22 +18,6 @@ require_scalar(const YAML::Node& n,
     return n.as<std::string>();
 }
 
-static logger::OverflowPolicy to_logger_overflow(cfg::OverflowPolicy p) {
-    switch (p) {
-        case cfg::OverflowPolicy::Block: return logger::OverflowPolicy::Block;
-        case cfg::OverflowPolicy::DropOldest: return logger::OverflowPolicy::OverrunOldest;
-    }
-    std::abort();
-}
-
-static queue::OverflowPolicy to_queue_overflow(cfg::OverflowPolicy p) {
-    switch (p) {
-        case cfg::OverflowPolicy::Block: return queue::OverflowPolicy::Block;
-        case cfg::OverflowPolicy::DropOldest: return queue::OverflowPolicy::DropOldest;
-    }
-    std::abort();
-}
-
 std::expected<cfg::AppConfig, cfg::ConfigError>
 cfg::ConfigLoader::load(const std::string& path) {
     YAML::Node root;
