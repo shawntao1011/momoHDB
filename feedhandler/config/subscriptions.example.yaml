@@ -1,0 +1,17 @@
+version: 1
+
+defaults:
+  subtypes:
+    - BasicQot
+    - OrderBook
+    - Ticker
+    - KL_1Min
+
+securities:
+  - symbol: HK.00700
+
+  - symbol: HK.00001
+    subtypes:
+        - BasicQot
+
+  - symbol: HK.09988

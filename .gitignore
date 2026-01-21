@@ -94,3 +94,15 @@ compile_commands.json
 CTestTestfile.cmake
 Testing
 
+#----------------------------------------
+# feedhandler config
+#----------------------------------------
+# Ignore all variants
+config/subscriptions.yaml
+config/subscriptions.*.yaml
+config/apps.yaml
+config/apps.*.yaml
+
+# But keep example
+!config/apps.example.yaml
+!config/subscriptions.example.yaml

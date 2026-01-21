@@ -1,0 +1,31 @@
+version: 1
+
+logger:
+  level: "info"
+  also_console: true
+  file: "logs/futu_feeder.jsonl"
+  queue_size: 65536
+  worker_threads: 1
+  overflow: "drop_oldest"
+  flush_on: "warn"
+
+futu:
+  opend_ip: "127.0.0.1"
+  opend_port: 11111
+
+subscriptions:
+  path: "subscriptions.example.yaml"
+
+subscriptionmanager:
+  capacity: 8192
+  refresh_ms: 5000
+  overflow: "drop_oldest"
+
+downstreams:
+  - name: "redpanda-example"
+    type: "redpanda"
+    redpanda:
+      brokers: "127.0.0.1:9092"
+      client_id: "futu-feedhandler"
+      compression: "lz4"
+      acks: "all"
