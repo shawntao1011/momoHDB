@@ -1,4 +1,4 @@
-#include "futu_core/SubscriptionManager.hpp"
+#include "futu_quote/SubscriptionManager.hpp"
 #include <FTAPI.h>
 #include <FTSPI.h>
 #include <Proto/Qot_Common.pb.h>

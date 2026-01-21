@@ -3,8 +3,8 @@
 #include <chrono>
 #include <csignal>
 #include <thread>
-#include "futu_core/FutuQuoteSession.hpp"
-#include "futu_core/SubscriptionManager.hpp"
+#include "futu_quote/FutuQuoteSession.hpp"
+#include "futu_quote/SubscriptionManager.hpp"
 #include "config/SubscriptionLoader.hpp"
 #include "config/ConfigLoader.hpp"
 #include "runtime/Dispatcher.hpp"
@@ -25,12 +25,16 @@ static queue::OverflowPolicy to_queue_overflow(cfg::OverflowPolicy p) {
 int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
 
-    namespace fs = std::filesystem;
-    fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
-    fs::path default_cfg =
-        (exe_dir / "../../../../config/apps.default.yaml")
-        .lexically_normal();
-    std::string config_path = (argc > 1) ? argv[1] : default_cfg.string();
+    if (argc < 2) {
+        std::cerr
+            << "Usage: futu_feeder <config.yaml>\n"
+            << "Example:\n"
+            << "  futu_feeder config/apps.example.yaml\n";
+        return 2;
+    }
+
+    std::string config_path = argv[1];
+
     if (!std::filesystem::exists(config_path)) {
         std::cerr << "[FATAL] config_not_found: " << config_path << "\n";
         return 1;
@@ -110,22 +114,15 @@ int main (int argc, char *argv[]) {
     FutuQuoteSession session(cbs);
     subman.bind_session(&session);
 
-    std::thread t([&]{
-        auto start_result = session.start(cfg.futu.opend_ip.c_str(), cfg.futu.opend_port);
-        if (!start_result) {
-            logger::error("main", "session_start_failed",
-              {logger::field("error", start_result.error())});
-            g_stop.store(true, std::memory_order_relaxed);
-        }
-        subman.run(g_stop);
-        session.stop();
-    });
-
-    while (!g_stop.load(std::memory_order_relaxed)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    auto start_result = session.start(cfg.futu.opend_ip.c_str(), cfg.futu.opend_port);
+    if (!start_result) {
+        logger::error("main", "session_start_failed",
+          {logger::field("error", start_result.error())});
+        return 1;
     }
 
-    t.join();
+    subman.run(g_stop);
 
+    session.stop();
     return 0;
 }

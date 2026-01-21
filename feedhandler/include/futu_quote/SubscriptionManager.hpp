@@ -1,5 +1,5 @@
 #pragma once
-#include "futu_core/FutuQuoteSession.hpp"
+#include "futu_quote/FutuQuoteSession.hpp"
 #include <FTSPI.h>
 #include <FTAPIChannel_Define.h>
 #include <atomic>

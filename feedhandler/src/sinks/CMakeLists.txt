@@ -10,7 +10,7 @@ add_library(feedhandler::sinks ALIAS feedhandler_sinks)
 
 target_include_directories(feedhandler_sinks
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include
 )
 
 target_link_libraries(feedhandler_sinks

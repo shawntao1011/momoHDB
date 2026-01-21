@@ -1,5 +1,5 @@
 # pragma once
-#include "futu_core/Subscription.hpp"
+#include "futu_quote/Subscription.hpp"
 #include <expected>
 #include <yaml-cpp/yaml.h>
 

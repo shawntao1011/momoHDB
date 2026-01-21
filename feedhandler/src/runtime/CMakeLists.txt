@@ -1,8 +1,10 @@
-add_library(runtime STATIC
-        Dispatcher.cpp
+add_library(feedhandler_runtime
+        ${PROJECT_SOURCE_DIR}/src/runtime/Dispatcher.cpp
 )
 
-target_include_directories(runtime
+add_library(feedhandler::runtime ALIAS feedhandler_runtime)
+
+target_include_directories(feedhandler_runtime
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include
 )
