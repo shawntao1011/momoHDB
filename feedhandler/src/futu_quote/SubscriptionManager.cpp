@@ -68,19 +68,30 @@ void SubscriptionManager::on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Res
 void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &stRsp)
 {
     const Qot_UpdateBasicQot::S2C &pbS2C = stRsp.s2c();
-    if (pbS2C.basicqotlist_size() <= 0) return;
+    const int list_size = pbS2C.basicqotlist_size();
+    if (list_size <= 0) return;
 
-    Envelope e;
-    e.topic = "futu.basicqot.pb";
-    const auto& sec = stRsp.s2c().basicqotlist(0).security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
-    e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
-    if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
-        return;
+    for (int i = 0; i < list_size; ++i) {
+        const auto& item = pbS2C.basicqotlist(i);
+        const auto& sec = item.security();
+
+        Qot_UpdateBasicQot::Response single_rsp;
+        single_rsp.set_rettype(stRsp.rettype());
+        single_rsp.set_retmsg(stRsp.retmsg());
+        single_rsp.mutable_s2c()->CopyFrom(stRsp.s2c());
+        single_rsp.mutable_s2c()->clear_basicqotlist();
+        single_rsp.mutable_s2c()->add_basicqotlist()->CopyFrom(item);
+
+        Envelope e;
+        e.topic = "futu.basicqot.pb";
+        e.key = make_key(sec.market(), sec.code());
+        e.ts_ns = now_ns();
+        e.payload.resize(static_cast<size_t>(single_rsp.ByteSizeLong()));
+        if (!single_rsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
+            continue;
+        }
+        enqueue(std::move(e));
     }
-
-    enqueue(std::move(e));
 }
 void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response &stRsp)
 {

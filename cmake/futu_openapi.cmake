@@ -44,7 +44,7 @@ add_custom_target(fetch_futu ALL DEPENDS "${FUTU_STAMP}")
 set(FUTU_LIBDIR "${FUTU_ROOT}/Bin/Ubuntu16.04")
 set(FUTU_INCDIR "${FUTU_ROOT}/Include")
 
-if(NOT FUTU_INCDIR)
+if(NOT EXISTS "${FUTU_INCDIR}")
   message(FATAL_ERROR "Futu OpenAPI headers not found under ${FUTU_ROOT}. Please check unzip/flatten result.")
 endif()
 
@@ -66,8 +66,7 @@ set_target_properties(futu_openapi_protobuf PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${FUTU_INCDIR}"
 )
 
-add_library(futu_openapi INTERFACE
-        ../include/config/SubscriptionLoader.hpp)
+add_library(futu_openapi INTERFACE IMPORTED GLOBAL)
 target_link_libraries(futu_openapi INTERFACE
   futu_openapi_ftapi
   futu_openapi_channel
