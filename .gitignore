@@ -98,11 +98,11 @@ Testing
 # feedhandler config
 #----------------------------------------
 # Ignore all variants
-config/subscriptions.yaml
-config/subscriptions.*.yaml
-config/apps.yaml
-config/apps.*.yaml
+feedhandler/config/subscriptions.yaml
+feedhandler/config/subscriptions.*.yaml
+feedhandler/config/apps.yaml
+feedhandler/config/apps.*.yaml
 
 # But keep example
-!config/apps.example.yaml
-!config/subscriptions.example.yaml
+!feedhandler/config/apps.example.yaml
+!feedhandler/config/subscriptions.example.yaml
