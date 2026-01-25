@@ -14,4 +14,4 @@ pkg_check_modules(RDKAFKACPP REQUIRED IMPORTED_TARGET rdkafka++)
 pkg_check_modules(RDKAFKA   REQUIRED IMPORTED_TARGET rdkafka)
 
 add_subdirectory(feedhandler)
-add_subdirectory(kafka_decoder)
+#add_subdirectory(kafka_decoder)
