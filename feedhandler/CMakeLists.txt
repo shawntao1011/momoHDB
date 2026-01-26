@@ -39,4 +39,18 @@ target_link_libraries(futu_feeder PRIVATE yaml-cpp fmt futu_openapi PkgConfig::R
 
 target_include_directories(futu_feeder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# install
+include(GNUInstallDirs)
+set(MOMO_LIBDIR "${CMAKE_INSTALL_LIBDIR}/momo_feedhandler")
 
+install(TARGETS futu_feeder
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+set_target_properties(futu_feeder PROPERTIES
+        BUILD_RPATH "${CMAKE_BINARY_DIR}"
+        INSTALL_RPATH "\$ORIGIN/../${MOMO_LIBDIR}"
+)
+
+install(FILES
+        "${FUTU_LIBDIR}/libFTAPIChannel.so"
+        DESTINATION ${MOMO_LIBDIR})

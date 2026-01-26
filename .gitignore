@@ -94,6 +94,7 @@ compile_commands.json
 CTestTestfile.cmake
 Testing
 third_party/
+_stage/
 
 #----------------------------------------
 # feedhandler config
