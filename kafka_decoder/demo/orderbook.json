@@ -1,0 +1,26 @@
+[
+    {
+        "partitionID": 0,
+        "offset": 2,
+        "timestamp": 1769440613233,
+        "compression": "lz4",
+        "isTransactional": false,
+        "headers": [],
+        "key": {
+            "payload": "HK.00700",
+            "rawPayload": "SEsuMDA3MDA=",
+            "encoding": "text",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 8
+        },
+        "value": {
+            "payload": "\b\u0000\"�\u0002\n\t\b\u0001\u0012\u000500700\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u0001\u0018\b\u0012\u000e\t\u0000\u0000\u0000\u0000\u0000Ă@\u0010�z\u0018\b\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000Ȃ@\u0010��\u0004\u0018\u001d\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000̂@\u0010�\t\u00186\u0012\u0010\t\u0000\u0000\u0000\u0000\u0000Ђ@\u0010��\t\u0018�\u0001\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000Ԃ@\u0010��\u0002\u0018@\u0012\u0010\t\u0000\u0000\u0000\u0000\u0000؂@\u0010��\b\u0018�\u0001\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000܂@\u0010��\u0004\u0018W\u0012\u0010\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u0007\u0018�\u0001\u0012\u000f\t\u0000\u0000\u0000\u0000\u0000�@\u0010��\u0007\u0018}\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\n\u0018\b\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010̍\u000f\u0018@\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\b\u0018\u0017\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010Ĉ\f\u0018G\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u0002\u0018\u001b\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010đ\t\u0018a\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010ؑ\u0004\u0018F\u001a\u0010\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u0006\u0018�\u0001\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u0005\u0018n\u001a\u0010\t\u0000\u0000\u0000\u0000\u0000��@\u0010��\u001c\u0018�\u0005B\f腾讯控股",
+            "rawPayload": "CAAi8QIKCQgBEgUwMDcwMBIPCQAAAAAAwIJAEJS5ARgIEg4JAAAAAADEgkAQ1HoYCBIPCQAAAAAAyIJAELz2BBgdEg8JAAAAAADMgkAQ6LcJGDYSEAkAAAAAANCCQBCgnQkYogESDwkAAAAAANSCQBCsrgIYQBIQCQAAAAAA2IJAEIjBCBi6ARIPCQAAAAAA3IJAEKzBBBhXEhAJAAAAAADggkAQzNcHGKQBEg8JAAAAAADkgkAQ8IAHGH0aDwkAAAAAALyCQBCckwoYCBoPCQAAAAAAuIJAEMyNDxhAGg8JAAAAAAC0gkAQrIMIGBcaDwkAAAAAALCCQBDEiAwYRxoPCQAAAAAArIJAEKTSAhgbGg8JAAAAAACogkAQxJEJGGEaDwkAAAAAAKSCQBDYkQQYRhoQCQAAAAAAoIJAENDIBhigARoPCQAAAAAAnIJAEKDbBRhuGhAJAAAAAACYgkAQ/OwcGNoFQgzohb7orq/mjqfogqE=",
+            "encoding": "binary",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 374
+        }
+    }
+]
