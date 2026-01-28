@@ -29,15 +29,17 @@ int main(int argc, char** argv) {
     // 1. extract raw bytes
     std::vector<uint8_t> payload;
     std::string key, err;
-    if (!json_extract::extract_kafka_message(json_path, payload, key, err)) {
+    std::int64_t ingest_time_ns = 0;
+    if (!json_extract::extract_kafka_message(json_path, payload, key, ingest_time_ns, err)) {
         std::cerr << "failed to extract kafka message\n";
         return 1;
     }
+    auto time_ns = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time_ns));
 
     switch (type) {
         case MsgType::Ticker: {
             TickerBatch batch;
-            if (!decode_qot_update_ticker(payload.data(), payload.size(), batch, err)) {
+            if (!decode_qot_update_ticker(payload.data(), payload.size(), time_ns, batch, err)) {
                 std::cerr << "decode failed: " << err << "\n";
                 return 1;
             }
@@ -46,7 +48,7 @@ int main(int argc, char** argv) {
         }
         case MsgType::OrderBook: {
             OrderBookBatch batch;
-            if (!decode_qot_update_orderbook(payload.data(), payload.size(), batch, err)) {
+            if (!decode_qot_update_orderbook(payload.data(), payload.size(), time_ns, batch, err)) {
                 std::cerr << "decode failed: " << err << "\n";
                 return 1;
             }
@@ -55,7 +57,7 @@ int main(int argc, char** argv) {
         }
         case MsgType::BasicQuote: {
             BasicQuoteBatch batch;
-            if (!decode_qot_update_basicquote(payload.data(), payload.size(), batch, err)) {
+            if (!decode_qot_update_basicquote(payload.data(), payload.size(), time_ns, batch, err)) {
                 std::cerr << "decode failed: " << err << "\n";
                 return 1;
             }
@@ -64,7 +66,7 @@ int main(int argc, char** argv) {
         }
         case MsgType::Kline1M: {
             KL1MinBatch batch;
-            if (!decode_qot_update_kl1min(payload.data(), payload.size(), batch, err)) {
+            if (!decode_qot_update_kl1min(payload.data(), payload.size(), time_ns, batch, err)) {
                 std::cerr << "decode failed: " << err << "\n";
                 return 1;
             }

@@ -123,6 +123,40 @@ inline bool extract_string_field(const std::string& in,
     return true;
 }
 
+inline bool extract_int64_field(const std::string& in,
+                            std::initializer_list<std::string_view> path,
+                            std::int64_t& out_value,
+                            std::string& err) {
+size_t pos = 0;
+for (auto k : path) {
+    pos = find_quoted_key(in, k, pos);
+    if (pos == std::string::npos) { err = "key not found: " + std::string(k); return false; }
+    pos += k.size() + 2;
+}
+pos = in.find(':', pos);
+if (pos == std::string::npos) { err = "':' not found after path"; return false; }
+++pos;
+skip_ws(in, pos);
+size_t end = pos;
+if (end < in.size() && (in[end] == '-' || in[end] == '+')) ++end;
+while (end < in.size()) {
+    unsigned char c = static_cast<unsigned char>(in[end]);
+    if (c < '0' || c > '9') break;
+    ++end;
+}
+if (end == pos || (end == pos + 1 && (in[pos] == '-' || in[pos] == '+'))) {
+    err = "invalid integer value";
+    return false;
+}
+try {
+    out_value = std::stoll(in.substr(pos, end - pos));
+} catch (const std::exception& e) {
+    err = std::string("failed to parse integer: ") + e.what();
+    return false;
+}
+return true;
+}
+
 // ---------------- Base64 decode ----------------
 inline int b64_index(unsigned char c) {
     if ('A'<=c && c<='Z') return c - 'A';
@@ -171,10 +205,20 @@ inline bool contains_ufffd_marker(const std::vector<uint8_t>& v) {
 inline bool extract_kafka_message(const std::string& json_path,
                                  std::vector<uint8_t>& value_bytes,
                                  std::string& key_text,
+                                 std::int64_t& ingest_time_ns,
                                  std::string& err) {
     err.clear();
     std::string raw;
     if (!read_file_bytes(json_path, raw, err)) return false;
+
+    ingest_time_ns = 0;
+    std::int64_t ingest_time_ms = 0;
+    bool has_ingest_time = extract_int64_field(raw, {"timestamp"}, ingest_time_ms, err);
+    if (!has_ingest_time) {
+        err.clear();
+    } else {
+        ingest_time_ns = ingest_time_ms * 1000000LL;
+    }
 
     // try rawPayload first
     std::string key_b64, val_b64;
