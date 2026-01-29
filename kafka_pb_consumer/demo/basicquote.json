@@ -1,0 +1,26 @@
+[
+    {
+        "partitionID": 0,
+        "offset": 1,
+        "timestamp": 1769608109350,
+        "compression": "lz4",
+        "isTransactional": false,
+        "headers": [],
+        "key": {
+            "payload": "HK.02600",
+            "rawPayload": "SEsuMDI2MDA=",
+            "encoding": "text",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 8
+        },
+        "value": {
+            "payload": "\b\u0000\u0012\u0000\"�\u0001\n�\u0001\n\t\b\u0001\u0012\u000502600\u0010\u0000\u001a\n2001-12-12!{\u0014�G�z�?*\u00132026-01-28 16:07:531�(\\��u.@9\\���(�*@A������*@I\u001f��Q�\u001e.@Q�\u001e��Q�*@X���:a\u0000\u0000��H��AiˡE���\b@q1\b�\u001cZ�,@x\u0000�\u0001\u0000\u0000\u0000�\u0016\u000b�A�\u0001\u0000\u0000@�p^�A�\u0001\u0001�\u0001\f中国铝业",
+            "rawPayload": "CAASACKvAQqsAQoJCAESBTAyNjAwEAAaCjIwMDEtMTItMTIhexSuR+F6hD8qEzIwMjYtMDEtMjggMTY6MDc6NTMx9ihcj8J1LkA5XI/C9SjcKkBBmpmZmZmZKkBJH4XrUbgeLkBRuB6F61G4KkBYwaThOmEAAICsSMTaQWnLoUW28/0IQHExCKwcWuQsQHgAiQEAAADAFgvOQZEBAABA9nBe2kGoAQHCAQzkuK3lm73pk53kuJo=",
+            "encoding": "binary",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 182
+        }
+    }
+]

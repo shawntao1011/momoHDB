@@ -1,0 +1,26 @@
+[
+    {
+        "partitionID": 0,
+        "offset": 1,
+        "timestamp": 1769608109349,
+        "compression": "lz4",
+        "isTransactional": false,
+        "headers": [],
+        "key": {
+            "payload": "HK.02600",
+            "rawPayload": "SEsuMDI2MDA=",
+            "encoding": "text",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 8
+        },
+        "value": {
+            "payload": "\b\u0000\"�\u0002\n\t\b\u0001\u0012\u000502600\u0012\u000f\t\u001f��Q�\u001e.@\u0010��\u0006\u0018\u0001\u0012\u000f\t�p=\n�#.@\u0010��\u0002\u0018\u0006\u0012\u000f\t)\\���(.@\u0010Љ\u0002\u0018\t\u0012\u000f\t�G�z\u0014..@\u0010�\u000b\u0018\n\u0012\u000f\t333333.@\u0010��\u0017\u0018,\u0012\u000f\t�\u001e��Q8.@\u0010��\t\u0018\u0003\u0012\u000f\t=\nףp=.@\u0010��\r\u0018\n\u0012\u000f\t��(\\�B.@\u0010��\u0001\u0018\u0006\u0012\u000f\tH�z\u0014�G.@\u0010��\u000b\u0018\u0006\u0012\u000f\t�����L.@\u0010��'\u0018\u0019\u001a\u000e\t�����\u0019.@\u0010�\u000f\u0018\u0001\u001a\u000f\t\u0014�G�z\u0014.@\u0010�\u0005\u0018\t\u001a\u000f\t���(\\\u000f.@\u0010��\r\u0018\u0005\u001a\u000f\t\nףp=\n.@\u0010��\u0005\u0018\u0005\u001a\u000f\t��Q�\u001e\u0005.@\u0010��\u0006\u0018\u0005\u001a\u000f\t\u0000\u0000\u0000\u0000\u0000\u0000.@\u0010��\u0005\u0018\u000e\u001a\u000f\t{\u0014�G��-@\u0010��\n\u0018\b\u001a\u000e\t�(\\���-@\u0010�>\u0018\u0004\u001a\u000e\tq=\nף�-@\u0010�>\u0018\u0003\u001a\u000f\t�Q�\u001e��-@\u0010��\u0005\u0018\u0003B\f中国铝业",
+            "rawPayload": "CAAi6gIKCQgBEgUwMjYwMBIPCR+F61G4Hi5AEJC8BhgBEg8JpHA9CtcjLkAQoJkCGAYSDwkpXI/C9SguQBDQiQIYCRIPCa5H4XoULi5AEOC8CxgKEg8JMzMzMzMzLkAQ4JgXGCwSDwm4HoXrUTguQBDgwgkYAxIPCT0K16NwPS5AEPCHDRgKEg8Jw/UoXI9CLkAQgPoBGAYSDwlI4XoUrkcuQBCA3AsYBhIPCc3MzMzMTC5AEODlJxgZGg4JmpmZmZkZLkAQ0A8YARoPCRSuR+F6FC5AEPCfBRgJGg8Jj8L1KFwPLkAQkKcNGAUaDwkK16NwPQouQBCQvwUYBRoPCYXrUbgeBS5AEKCNBhgFGg8JAAAAAAAALkAQwK8FGA4aDwl7FK5H4fotQBDQ7goYCBoOCfYoXI/C9S1AEMA+GAQaDglxPQrXo/AtQBDAPhgDGg8J7FG4HoXrLUAQ0P0FGANCDOS4reWbvemTneS4mg==",
+            "encoding": "binary",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 367
+        }
+    }
+]

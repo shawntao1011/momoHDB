@@ -10,8 +10,12 @@ include(${CMAKE_SOURCE_DIR}/cmake/futu_openapi.cmake)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(Protobuf CONFIG QUIET)
+if(NOT Protobuf_FOUND)
+    find_package(Protobuf REQUIRED)     # fallback to FindProtobuf.cmake
+endif()
 pkg_check_modules(RDKAFKACPP REQUIRED IMPORTED_TARGET rdkafka++)
 pkg_check_modules(RDKAFKA   REQUIRED IMPORTED_TARGET rdkafka)
 
 add_subdirectory(feedhandler)
-add_subdirectory(kafka_decoder)
+add_subdirectory(kafka_pb_consumer)

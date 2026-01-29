@@ -1,0 +1,26 @@
+[
+    {
+        "partitionID": 0,
+        "offset": 1,
+        "timestamp": 1769608109101,
+        "compression": "lz4",
+        "isTransactional": false,
+        "headers": [],
+        "key": {
+            "payload": "HK.00700",
+            "rawPayload": "SEsuMDA3MDA=",
+            "encoding": "text",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 8
+        },
+        "value": {
+            "payload": "\b\u0000\"o\n\t\b\u0001\u0012\u000500700\u0012T\n\u00172026-01-28 16:08:14.613\u0010�ˁ����i\u0018\u0003!\u0000\u0000\u0000\u0000\u0000h�@(���\u00011\u0000\u0000\u0000\u0006d��A9�vF�^�A@\u0007HUP\u0003Yd;��p^�A\u001a\f腾讯控股",
+            "rawPayload": "CAAibwoJCAESBTAwNzAwElQKFzIwMjYtMDEtMjggMTY6MDg6MTQuNjEzEJXLgYDg/fC8aRgDIQAAAAAAaINAKPiCiAExAAAABmSf1EE5knZG64Re2kFAB0hVUANZZDun+3Be2kEaDOiFvuiur+aOp+iCoQ==",
+            "encoding": "binary",
+            "isPayloadNull": false,
+            "schemaId": 0,
+            "size": 115
+        }
+    }
+]

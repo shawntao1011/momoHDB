@@ -11,5 +11,5 @@ target_link_options(decode_demo PRIVATE -no-pie)
 
 target_link_libraries(decode_demo
         PRIVATE
-        momo::kafka_decoder
+        kfkpb
 )

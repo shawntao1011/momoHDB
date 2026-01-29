@@ -8,7 +8,7 @@
 bool decode_qot_update_basicquote(
     const void* data,
     std::size_t len,
-    std::chrono::system_clock::time_point ingest_time,
+    int64_t ingest_time,
     BasicQuoteBatch& out,
     std::string& err) {
 
@@ -47,7 +47,8 @@ bool decode_qot_update_basicquote(
 
         // security: market + code .e.g HK.00100
         if (t.has_security()) row.symbol = build_symbol_from_security(t.security());
-        row.time = ingest_time;
+
+        row.time = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time));
 
         if (t.has_pricespread())        row.priceSpread = t.pricespread();
         if (t.has_highprice())          row.highPrice = t.highprice();
@@ -71,7 +72,7 @@ bool decode_qot_update_basicquote(
 bool decode_qot_update_orderbook(
     const void* data,
     std::size_t len,
-    std::chrono::system_clock::time_point ingest_time,
+    int64_t ingest_time,
     OrderBookBatch& out,
     std::string& err) {
 
@@ -114,7 +115,7 @@ bool decode_qot_update_orderbook(
 
         OrderBookRow row{};
         row.symbol = symbol;
-        row.time = ingest_time;
+        row.time = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time));
         row.side = "ask";
         row.rank = i;
 
@@ -130,7 +131,7 @@ bool decode_qot_update_orderbook(
 
         OrderBookRow row{};
         row.symbol = symbol;
-        row.time = ingest_time;
+        row.time = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time));
         row.side = "bid";
         row.rank = i;
 
@@ -147,7 +148,7 @@ bool decode_qot_update_orderbook(
 bool decode_qot_update_ticker(
     const void* data,
     std::size_t len,
-    std::chrono::system_clock::time_point ingest_time,
+    int64_t ingest_time,
     TickerBatch& out,
     std::string& err) {
 
@@ -191,7 +192,7 @@ bool decode_qot_update_ticker(
 
         // security: market + code .e.g HK.00100
         row.symbol = symbol;
-        row.time = ingest_time;
+        row.time = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time));
 
         if (t.has_dir())        row.direction = (int32_t)t.dir();
         if (t.has_price())      row.price    = t.price();
@@ -210,7 +211,7 @@ bool decode_qot_update_ticker(
 bool decode_qot_update_kl1min(
     const void* data,
     std::size_t len,
-    std::chrono::system_clock::time_point ingest_time,
+    int64_t ingest_time,
     KL1MinBatch& out,
     std::string& err) {
 
@@ -254,7 +255,7 @@ bool decode_qot_update_kl1min(
 
         // security: market + code .e.g HK.00100
         row.symbol = symbol;
-        row.time = std::chrono::system_clock::now();
+        row.time = std::chrono::system_clock::time_point(std::chrono::nanoseconds(ingest_time));
 
         if (t.has_highprice())  row.highPrice = t.highprice();
         if (t.has_openprice())  row.openPrice = t.openprice();
