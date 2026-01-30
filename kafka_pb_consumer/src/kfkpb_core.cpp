@@ -33,22 +33,22 @@ static K build_event_dict(const char* etype,
                           K data,
                           const std::string& reason) {
     K keys = ktn(KS, 7);
-    kS(keys)[0]=ss("etype");
-    kS(keys)[1]=ss("type");
-    kS(keys)[2]=ss("topic");
-    kS(keys)[3]=ss("key");
-    kS(keys)[4]=ss("ingestTime");
-    kS(keys)[5]=ss("data");
-    kS(keys)[6]=ss("reason");
+    kS(keys)[0]=ss(const_cast<S>("etype"));
+    kS(keys)[1]=ss(const_cast<S>("type"));
+    kS(keys)[2]=ss(const_cast<S>("topic"));
+    kS(keys)[3]=ss(const_cast<S>("key"));
+    kS(keys)[4]=ss(const_cast<S>("ingestTime"));
+    kS(keys)[5]=ss(const_cast<S>("data"));
+    kS(keys)[6]=ss(const_cast<S>("reason"));
 
     K vals = knk(7);
-    kK(vals)[0]=ks((S)etype);
-    kK(vals)[1]=ks((S)type);
-    kK(vals)[2]=ks((S)topic.c_str());
-    kK(vals)[3]=ks((S)key.c_str());
+    kK(vals)[0]=ks(const_cast<S>(etype));
+    kK(vals)[1]=ks(const_cast<S>(type));
+    kK(vals)[2]=ks(const_cast<S>(topic.c_str()));
+    kK(vals)[3]=ks(const_cast<S>(key.c_str()));
     kK(vals)[4]=kdb_ts_from_ms_epoch(ingest_ms);
     kK(vals)[5]=data;
-    kK(vals)[6]=ks((S)reason.c_str());
+    kK(vals)[6]=ks(const_cast<S>(reason.c_str()));
 
     return xD(keys, vals);
 }

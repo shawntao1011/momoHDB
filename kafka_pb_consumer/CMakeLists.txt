@@ -1,17 +1,25 @@
-add_library(kfkpb SHARED
-        src/kfkpb.cpp
+add_library(kfkpb_core SHARED
         src/kfkpb_core.cpp
         src/decoders.cpp
-        src/print.cpp
 )
-
-target_include_directories(kfkpb
+target_include_directories(kfkpb_core
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(kfkpb PUBLIC futu_pb PkgConfig::RDKAFKA)
+target_link_libraries(kfkpb_core
+        PUBLIC
+            futu_pb
+            PkgConfig::RDKAFKA
+            futu_openapi_protobuf
+        PRIVATE
+            kx::capi)
+
+add_library(kfkpb SHARED
+        src/kfkpb.cpp
+)
+target_link_libraries(kfkpb PUBLIC kfkpb_core)
 set_target_properties(kfkpb PROPERTIES OUTPUT_NAME "kfkpb")
 
-#add_subdirectory(demo)
+add_subdirectory(demo)

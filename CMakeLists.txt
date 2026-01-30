@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(${CMAKE_SOURCE_DIR}/cmake/futu_openapi.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/kx_kdb.cmake)
 
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)

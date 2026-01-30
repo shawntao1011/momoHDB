@@ -74,6 +74,7 @@ target_link_libraries(futu_openapi INTERFACE
 )
 
 add_library(futu_pb STATIC
+        ${FUTU_INCDIR}/Proto/Common.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_Common.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_UpdateOrderBook.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_UpdateBasicQot.pb.cc
