@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <librdkafka/rdkafka.h>
 
-#include "k.h"
 #include "momoDB_types.hpp"
 
 enum class KfkpbMsgType {
@@ -16,6 +15,28 @@ enum class KfkpbMsgType {
     Ticker,
     Kline1M,
     Unknown
+};
+
+struct KfkpbEvent {
+    enum class Kind {
+        Data,
+        Error
+    };
+
+    using Payload = std::variant<std::monostate,
+                                 TickerBatch,
+                                 OrderBookBatch,
+                                 BasicQuoteBatch,
+                                 KL1MinBatch,
+                                 std::vector<std::uint8_t>>;
+
+    Kind kind{Kind::Data};
+    KfkpbMsgType msg_type{KfkpbMsgType::Unknown};
+    std::string topic;
+    std::string key;
+    std::int64_t ingest_ms{0};
+    std::string reason;
+    Payload payload;
 };
 
 class KfkpbClient {
@@ -37,7 +58,7 @@ public:
     void subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType> topics, std::int64_t ts_ms);
 
     // q thread
-    void drainTo(std::vector<K>& out);
+    void drainTo(std::vector<KfkpbEvent>& out);
 
 private:
     struct RawMsg {
@@ -55,7 +76,7 @@ private:
     bool popRaw(RawMsg& out);
     void pushRaw(RawMsg&& m);
 
-    void pushEvent(K ev);
+    void pushEvent(KfkpbEvent ev);
 
 private:
     rd_kafka_t* rk_{nullptr};
@@ -84,5 +105,5 @@ private:
 
     // event queue (K objects)
     std::mutex evt_mu_;
-    std::deque<K> evt_q_;
+    std::deque<KfkpbEvent> evt_q_;
 };

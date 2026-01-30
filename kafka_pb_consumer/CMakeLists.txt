@@ -1,8 +1,6 @@
 add_library(kfkpb_core SHARED
         src/kfkpb_core.cpp
         src/decoders.cpp
-        src/print_k.cpp
-        src/build_k_tbl.cpp
 )
 target_include_directories(kfkpb_core
         PUBLIC
@@ -15,13 +13,17 @@ target_link_libraries(kfkpb_core
             futu_pb
             PkgConfig::RDKAFKA
             futu_openapi_protobuf
-        PRIVATE
-            kx::capi)
+)
 
 add_library(kfkpb SHARED
         src/kfkpb.cpp
 )
-target_link_libraries(kfkpb PUBLIC kfkpb_core)
+target_link_libraries(kfkpb
+        PUBLIC
+            kfkpb_core
+        PRIVATE
+            kx::capi
+)
 set_target_properties(kfkpb PROPERTIES OUTPUT_NAME "kfkpb")
 
 add_subdirectory(demo)

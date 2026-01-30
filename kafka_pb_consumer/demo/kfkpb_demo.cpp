@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "k.h"
-#include "../src/print_k.cpp"
 #include "kfkpb_core.hpp"
 
 namespace {
@@ -61,8 +60,81 @@ void drain_notify_fd(int fd) {
     }
 }
 
-std::string indent(int depth) {
-    return std::string(static_cast<std::size_t>(depth) * 2, ' ');
+const char* kind_to_string(KfkpbEvent::Kind kind) {
+    switch (kind) {
+        case KfkpbEvent::Kind::Data:
+            return "data";
+        case KfkpbEvent::Kind::Error:
+            return "error";
+        default:
+            return "unknown";
+    }
+}
+
+const char* msg_type_to_string(KfkpbMsgType type) {
+    switch (type) {
+        case KfkpbMsgType::Ticker:
+            return "ticker";
+        case KfkpbMsgType::OrderBook:
+            return "orderbook";
+        case KfkpbMsgType::BasicQuote:
+            return "basicquote";
+        case KfkpbMsgType::Kline1M:
+            return "kl1min";
+        default:
+            return "unknown";
+    }
+}
+
+std::string payload_summary(const KfkpbEvent& ev) {
+    if (ev.kind == KfkpbEvent::Kind::Error) {
+        if (auto raw = std::get_if<std::vector<std::uint8_t>>(&ev.payload)) {
+            return "raw_bytes=" + std::to_string(raw->size());
+        }
+        return "raw_bytes=0";
+    }
+
+    switch (ev.msg_type) {
+        case KfkpbMsgType::Ticker: {
+            if (auto b = std::get_if<TickerBatch>(&ev.payload)) {
+                return "rows=" + std::to_string(b->rows.size());
+            }
+            break;
+        }
+        case KfkpbMsgType::OrderBook: {
+            if (auto b = std::get_if<OrderBookBatch>(&ev.payload)) {
+                return "rows=" + std::to_string(b->rows.size());
+            }
+            break;
+        }
+        case KfkpbMsgType::BasicQuote: {
+            if (auto b = std::get_if<BasicQuoteBatch>(&ev.payload)) {
+                return "rows=" + std::to_string(b->rows.size());
+            }
+            break;
+        }
+        case KfkpbMsgType::Kline1M: {
+            if (auto b = std::get_if<KL1MinBatch>(&ev.payload)) {
+                return "rows=" + std::to_string(b->rows.size());
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return "rows=0";
+}
+
+void print_event(const KfkpbEvent& ev) {
+    std::cout << "event{"
+              << "etype=" << kind_to_string(ev.kind)
+              << ", type=" << msg_type_to_string(ev.msg_type)
+              << ", topic=" << ev.topic
+              << ", key=" << ev.key
+              << ", ingest_ms=" << ev.ingest_ms
+              << ", reason=" << ev.reason
+              << ", " << payload_summary(ev)
+              << "}";
 }
 } // namespace
 
@@ -107,12 +179,11 @@ int main() {
                 drain_notify_fd(notify_fds[1]);
             }
 
-            std::vector<K> events;
+            std::vector<KfkpbEvent> events;
             client.drainTo(events);
-            for (K ev : events) {
-                print_k(ev, std::cout, 0);
+            for (const auto& ev : events) {
+                print_event(ev);
                 std::cout << "\n";
-                r0(ev);
             }
         }
     } catch (const std::exception& e) {

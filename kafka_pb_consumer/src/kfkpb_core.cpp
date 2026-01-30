@@ -1,58 +1,26 @@
 #include <cstring>
 #include "kfkpb_core.hpp"
 
-#include "build_k_tbl.hpp"
 #include "decoders.hpp"
 
-static inline K kdb_ts_from_ms_epoch(int64_t ms_epoch) {
-    if (ms_epoch <= 0) return ktj(-KP, nj);
-    constexpr int64_t DAYS_1970_TO_2000 = 10957LL;
-    constexpr int64_t NS_PER_DAY = 86400LL * 1000000000LL;
-    int64_t ns_epoch = ms_epoch * 1000000LL;
-    int64_t ns2000 = ns_epoch - DAYS_1970_TO_2000 * NS_PER_DAY;
-    return ktj(-KP, ns2000);
-}
-
-static inline K empty_table() {
-    return xT(xD(ktn(KS,0), knk(0)));
-}
-
-static inline const char* type_to_sym(KfkpbMsgType t) {
-    switch (t) {
-        case KfkpbMsgType::Ticker: return "ticker";
-        case KfkpbMsgType::OrderBook: return "orderbook";
-        case KfkpbMsgType::BasicQuote: return "basicquote";
-        case KfkpbMsgType::Kline1M: return "kl1min";
-        default: return "unknown";
+static KfkpbEvent make_error_event(KfkpbMsgType type,
+                                   std::string topic,
+                                   std::string key,
+                                   int64_t ingest_ms,
+                                   std::string reason,
+                                   std::vector<std::uint8_t> raw = {}) {
+    KfkpbEvent ev;
+    ev.kind = KfkpbEvent::Kind::Error;
+    ev.msg_type = type;
+    ev.topic = std::move(topic);
+    ev.key = std::move(key);
+    ev.ingest_ms = ingest_ms;
+    ev.reason = std::move(reason);
+    if (!raw.empty()) {
+        ev.payload = std::move(raw);
     }
-}
 
-static K build_event_dict(const char* etype,
-                          const char* type,
-                          const std::string& topic,
-                          const std::string& key,
-                          int64_t ingest_ms,
-                          K data,
-                          const std::string& reason) {
-    K keys = ktn(KS, 7);
-    kS(keys)[0]=ss(const_cast<S>("etype"));
-    kS(keys)[1]=ss(const_cast<S>("type"));
-    kS(keys)[2]=ss(const_cast<S>("topic"));
-    kS(keys)[3]=ss(const_cast<S>("key"));
-    kS(keys)[4]=ss(const_cast<S>("ingestTime"));
-    kS(keys)[5]=ss(const_cast<S>("data"));
-    kS(keys)[6]=ss(const_cast<S>("reason"));
-
-    K vals = knk(7);
-    kK(vals)[0]=ks(const_cast<S>(etype));
-    kK(vals)[1]=ks(const_cast<S>(type));
-    kK(vals)[2]=ks(const_cast<S>(topic.c_str()));
-    kK(vals)[3]=ks(const_cast<S>(key.c_str()));
-    kK(vals)[4]=kdb_ts_from_ms_epoch(ingest_ms);
-    kK(vals)[5]=data;
-    kK(vals)[6]=ks(const_cast<S>(reason.c_str()));
-
-    return xD(keys, vals);
+    return ev;
 }
 
 KfkpbClient::KfkpbClient(rd_kafka_t* rk, int notify_fd, ThreadCfg cfg)
@@ -89,7 +57,6 @@ KfkpbClient::~KfkpbClient() {
 
     {
         std::lock_guard<std::mutex> lk(evt_mu_);
-        for (auto& x : evt_q_) r0(x);
         evt_q_.clear();
     }
 }
@@ -114,10 +81,10 @@ void KfkpbClient::subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType
     cfg_cv_.notify_all();
 }
 
-void KfkpbClient::drainTo(std::vector<K>& out) {
+void KfkpbClient::drainTo(std::vector<KfkpbEvent>& out) {
     std::lock_guard<std::mutex> lk(evt_mu_);
     while (!evt_q_.empty()) {
-        out.push_back(evt_q_.front());
+        out.push_back(std::move(evt_q_.front()));
         evt_q_.pop_front();
     }
 }
@@ -148,10 +115,8 @@ void KfkpbClient::consumerLoop() {
 
         if (e != RD_KAFKA_RESP_ERR_NO_ERROR) {
             // emit error event
-            K ev = build_event_dict("error", "unknown", "", "", 0,
-                                    empty_table(),
-                                    std::string("rd_kafka_subscribe failed: ") + rd_kafka_err2str(e));
-            pushEvent(ev);
+            pushEvent(make_error_event(KfkpbMsgType::Unknown, "", "", 0,
+                                       std::string("rd_kafka_subscribe failed: ") + rd_kafka_err2str(e)));
             appliedEpoch = cfgEpoch_;
             return;
         }
@@ -179,10 +144,8 @@ void KfkpbClient::consumerLoop() {
             if (!got) {
                 if (assn) rd_kafka_topic_partition_list_destroy(assn);
                 // emit warning event
-                K ev = build_event_dict("error", "unknown", "", "", ts_ms,
-                                        empty_table(),
-                                        "subscribeFromTime: assignment not ready, skip seek");
-                pushEvent(ev);
+                pushEvent(make_error_event(KfkpbMsgType::Unknown, "", "", ts_ms,
+                                           "subscribeFromTime: assignment not ready, skip seek"));
                 lk.lock();
                 appliedEpoch = cfgEpoch_;
                 return;
@@ -196,10 +159,8 @@ void KfkpbClient::consumerLoop() {
             rd_kafka_resp_err_t oe = rd_kafka_offsets_for_times(rk_, assn, 5000);
             if (oe != RD_KAFKA_RESP_ERR_NO_ERROR) {
                 rd_kafka_topic_partition_list_destroy(assn);
-                K ev = build_event_dict("error", "unknown", "", "", ts_ms,
-                                        empty_table(),
-                                        std::string("offsets_for_times failed: ") + rd_kafka_err2str(oe));
-                pushEvent(ev);
+                pushEvent(make_error_event(KfkpbMsgType::Unknown, "", "", ts_ms,
+                                           std::string("offsets_for_times failed: ") + rd_kafka_err2str(oe)));
                 lk.lock();
                 appliedEpoch = cfgEpoch_;
                 return;
@@ -210,10 +171,8 @@ void KfkpbClient::consumerLoop() {
             rd_kafka_resp_err_t ae = rd_kafka_assign(rk_, assn);
             if (ae != RD_KAFKA_RESP_ERR_NO_ERROR) {
                 rd_kafka_topic_partition_list_destroy(assn);
-                K ev = build_event_dict("error", "unknown", "", "", ts_ms,
-                                        empty_table(),
-                                        std::string("assign after offsets_for_times failed: ") + rd_kafka_err2str(ae));
-                pushEvent(ev);
+                pushEvent(make_error_event(KfkpbMsgType::Unknown, "", "", ts_ms,
+                                           std::string("assign after offsets_for_times failed: ") + rd_kafka_err2str(ae)));
                 lk.lock();
                 appliedEpoch = cfgEpoch_;
                 return;
@@ -238,12 +197,10 @@ void KfkpbClient::consumerLoop() {
 
                 if (se != RD_KAFKA_RESP_ERR_NO_ERROR) {
                     // emit warning but keep going
-                    K ev = build_event_dict("error", "unknown",
-                                            e.topic ? e.topic : "",
-                                            "", ts_ms,
-                                            empty_table(),
-                                            std::string("seek failed: ") + rd_kafka_err2str(se));
-                    pushEvent(ev);
+                    pushEvent(make_error_event(KfkpbMsgType::Unknown,
+                                               e.topic ? e.topic : "",
+                                               "", ts_ms,
+                                               std::string("seek failed: ") + rd_kafka_err2str(se)));
                 }
             }
 
@@ -310,13 +267,9 @@ void KfkpbClient::decodeLoop() {
 
         // Unknown topic => emit error event with raw bytes (optional)
         if (mt == KfkpbMsgType::Unknown) {
-            K raw = ktn(KG, (J)m.payload.size());
-            if (!m.payload.empty()) std::memcpy(kG(raw), m.payload.data(), m.payload.size());
-
-            K ev = build_event_dict("error", "unknown", m.topic, m.key, m.ts_ms,
-                                    raw,
-                                    "unknown topic mapping (topic not in topics dict)");
-            pushEvent(ev);
+            pushEvent(make_error_event(KfkpbMsgType::Unknown, m.topic, m.key, m.ts_ms,
+                                       "unknown topic mapping (topic not in topics dict)",
+                                       std::move(m.payload)));
             continue;
         }
 
@@ -324,7 +277,7 @@ void KfkpbClient::decodeLoop() {
         std::string derr;
 
         try {
-            K data_tbl = nullptr;
+            KfkpbEvent::Payload payload;
 
             switch (mt) {
                 case KfkpbMsgType::Ticker: {
@@ -332,7 +285,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_ticker(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    data_tbl = to_table(b);
+                    payload = std::move(b);
                     break;
                 }
                 case KfkpbMsgType::OrderBook: {
@@ -340,7 +293,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_orderbook(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    data_tbl = to_table(b);
+                    payload = std::move(b);
                     break;
                 }
                 case KfkpbMsgType::BasicQuote: {
@@ -348,7 +301,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_basicquote(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    data_tbl = to_table(b);
+                    payload = std::move(b);
                     break;
                 }
                 case KfkpbMsgType::Kline1M: {
@@ -356,7 +309,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_kl1min(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    data_tbl = to_table(b);
+                    payload = std::move(b);
                     break;
                 }
                 default:
@@ -366,31 +319,25 @@ void KfkpbClient::decodeLoop() {
 
             if (!derr.empty()) {
                 // decode failure: emit error event. You can attach raw payload for debugging.
-                K raw = ktn(KG, (J)m.payload.size());
-                if (!m.payload.empty()) std::memcpy(kG(raw), m.payload.data(), m.payload.size());
-
-                K ev = build_event_dict("error", type_to_sym(mt), m.topic, m.key, m.ts_ms,
-                                        raw,
-                                        derr);
-                pushEvent(ev);
+                pushEvent(make_error_event(mt, m.topic, m.key, m.ts_ms,
+                                           derr,
+                                           std::move(m.payload)));
                 continue;
             }
 
-            if (!data_tbl) data_tbl = empty_table();
-
-            K ev = build_event_dict("data", type_to_sym(mt), m.topic, m.key, m.ts_ms,
-                                    data_tbl,
-                                    "");
-            pushEvent(ev);
+            KfkpbEvent ev;
+            ev.kind = KfkpbEvent::Kind::Data;
+            ev.msg_type = mt;
+            ev.topic = m.topic;
+            ev.key = m.key;
+            ev.ingest_ms = m.ts_ms;
+            ev.payload = std::move(payload);
+            pushEvent(std::move(ev));
         } catch (const std::exception& e) {
             // Exception safety: never crash worker
-            K raw = ktn(KG, (J)m.payload.size());
-            if (!m.payload.empty()) std::memcpy(kG(raw), m.payload.data(), m.payload.size());
-
-            K ev = build_event_dict("error", type_to_sym(mt), m.topic, m.key, m.ts_ms,
-                                    raw,
-                                    std::string("exception: ") + e.what());
-            pushEvent(ev);
+            pushEvent(make_error_event(mt, m.topic, m.key, m.ts_ms,
+                                       std::string("exception: ") + e.what(),
+                                       std::move(m.payload)));
         }
     }
 }
@@ -420,14 +367,13 @@ void KfkpbClient::pushRaw(RawMsg&& m) {
     raw_cv_.notify_one();
 }
 
-void KfkpbClient::pushEvent(K ev) {
+void KfkpbClient::pushEvent(KfkpbEvent ev) {
     {
         std::lock_guard<std::mutex> lk(evt_mu_);
         if (evt_q_.size() >= cfg_.max_evt_queue) {
-            r0(evt_q_.front());
             evt_q_.pop_front();
         }
-        evt_q_.push_back(ev);
+        evt_q_.push_back(std::move(ev));
     }
     notify();
 }
