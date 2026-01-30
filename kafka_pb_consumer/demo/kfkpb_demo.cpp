@@ -1,8 +1,9 @@
 #include <cstring>
+#include <fcntl.h>
 #include <iostream>
 
 #include "k.h"
-#include "print_k.hpp"
+#include "../src/print_k.cpp"
 #include "kfkpb_core.hpp"
 
 namespace {
@@ -39,11 +40,24 @@ rd_kafka_t* create_consumer(const KafkaSettings& settings) {
     return rk;
 }
 
+void set_nonblock(int fd) {
+    const int flags = fcntl(fd, F_GETFL, 0);
+    if (flags >= 0) {
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+}
+
 void drain_notify_fd(int fd) {
     char buf[256];
     while (true) {
         const ssize_t n = recv(fd, buf, sizeof(buf), 0);
-        if (n <= 0) break;
+        if (n > 0) {
+            continue;
+        }
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            break;
+        }
+        break;
     }
 }
 
@@ -59,6 +73,8 @@ int main() {
             std::cerr << "socketpair failed: " << std::strerror(errno) << "\n";
             return 1;
         }
+        set_nonblock(notify_fds[0]);
+        set_nonblock(notify_fds[1]);
 
         KafkaSettings settings{};
         rd_kafka_t* rk = create_consumer(settings);

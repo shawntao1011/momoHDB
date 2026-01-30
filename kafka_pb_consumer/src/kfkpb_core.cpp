@@ -1,5 +1,7 @@
 #include <cstring>
 #include "kfkpb_core.hpp"
+
+#include "build_k_tbl.hpp"
 #include "decoders.hpp"
 
 static inline K kdb_ts_from_ms_epoch(int64_t ms_epoch) {
@@ -330,9 +332,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_ticker(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    // TODO: replace with your real to_table(b, m.ts_ms)
-                    // data_tbl = to_table(b, m.ts_ms);
-                    data_tbl = empty_table();
+                    data_tbl = to_table(b);
                     break;
                 }
                 case KfkpbMsgType::OrderBook: {
@@ -340,8 +340,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_orderbook(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    // data_tbl = to_table(b, m.ts_ms);
-                    data_tbl = empty_table();
+                    data_tbl = to_table(b);
                     break;
                 }
                 case KfkpbMsgType::BasicQuote: {
@@ -349,8 +348,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_basicquote(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    // data_tbl = to_table(b, m.ts_ms);
-                    data_tbl = empty_table();
+                    data_tbl = to_table(b);
                     break;
                 }
                 case KfkpbMsgType::Kline1M: {
@@ -358,8 +356,7 @@ void KfkpbClient::decodeLoop() {
                     if (!decode_qot_update_kl1min(m.payload.data(), m.payload.size(), m.ts_ms, b, derr)) {
                         break;
                     }
-                    // data_tbl = to_table(b, m.ts_ms);
-                    data_tbl = empty_table();
+                    data_tbl = to_table(b);
                     break;
                 }
                 default:

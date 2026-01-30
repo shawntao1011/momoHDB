@@ -1,6 +1,8 @@
 add_library(kfkpb_core SHARED
         src/kfkpb_core.cpp
         src/decoders.cpp
+        src/print_k.cpp
+        src/build_k_tbl.cpp
 )
 target_include_directories(kfkpb_core
         PUBLIC
