@@ -44,7 +44,7 @@ add_custom_target(fetch_futu ALL DEPENDS "${FUTU_STAMP}")
 set(FUTU_LIBDIR "${FUTU_ROOT}/Bin/Ubuntu16.04")
 set(FUTU_INCDIR "${FUTU_ROOT}/Include")
 
-if(NOT FUTU_INCDIR)
+if(NOT EXISTS "${FUTU_INCDIR}")
   message(FATAL_ERROR "Futu OpenAPI headers not found under ${FUTU_ROOT}. Please check unzip/flatten result.")
 endif()
 
@@ -66,12 +66,29 @@ set_target_properties(futu_openapi_protobuf PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${FUTU_INCDIR}"
 )
 
-add_library(futu_openapi INTERFACE
-        ../include/config/SubscriptionLoader.hpp)
+add_library(futu_openapi INTERFACE IMPORTED GLOBAL)
 target_link_libraries(futu_openapi INTERFACE
   futu_openapi_ftapi
   futu_openapi_channel
   futu_openapi_protobuf
+)
+
+add_library(futu_pb STATIC
+        ${FUTU_INCDIR}/Proto/Common.pb.cc
+        ${FUTU_INCDIR}/Proto/Qot_Common.pb.cc
+        ${FUTU_INCDIR}/Proto/Qot_UpdateOrderBook.pb.cc
+        ${FUTU_INCDIR}/Proto/Qot_UpdateBasicQot.pb.cc
+        ${FUTU_INCDIR}/Proto/Qot_UpdateTicker.pb.cc
+        ${FUTU_INCDIR}/Proto/Qot_UpdateKL.pb.cc
+)
+set_target_properties(futu_pb PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+)
+target_include_directories(futu_pb PUBLIC
+        ${FUTU_INCDIR}
+)
+target_link_libraries(futu_pb PUBLIC
+        protobuf::libprotobuf
 )
 
 add_dependencies(futu_openapi_ftapi fetch_futu)

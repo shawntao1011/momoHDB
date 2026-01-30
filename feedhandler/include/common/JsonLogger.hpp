@@ -18,7 +18,6 @@
 #include <filesystem>
 
 #include "config/Config.hpp"
-
 namespace logger {
 
 // ------------------------------

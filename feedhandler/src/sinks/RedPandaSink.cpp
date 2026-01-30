@@ -79,6 +79,8 @@ void RedPandaSink::submit(std::shared_ptr<const Envelope> e) {
     const auto err = rd_kafka_producev(
         producer_,
         RD_KAFKA_V_TOPIC(e->topic.c_str()),
+        RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+        RD_KAFKA_V_TIMESTAMP(timestamp_ms),
         RD_KAFKA_V_KEY(e->key.data(), e->key.size()),
         RD_KAFKA_V_VALUE(const_cast<char*>(e->payload.data()), e->payload.size()),
         RD_KAFKA_V_END);
