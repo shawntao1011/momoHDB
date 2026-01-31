@@ -9,7 +9,7 @@ target_include_directories(momo_schema
 )
 
 add_library(momo_qcodec STATIC
-        src/qcodec.cpp
+        src/schema_qipc.cpp
 )
 add_library(momo::qcodec ALIAS momo_qcodec)
 
@@ -23,3 +23,5 @@ target_link_libraries(momo_qcodec
         PUBLIC
         momo::schema
 )
+
+add_subdirectory(demo)

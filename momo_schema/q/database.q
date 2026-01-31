@@ -28,8 +28,8 @@ Minutes: @[;`sym;`p#]
         turnoverrate    :0Nf;
         pe              :0Nf;
         changerate      :0Nf;
-        recvTime        :0Np;
-        tsTime          :0Np //timestamp
+        recvtime        :0Np;
+        tstime          :0Np //timestamp
     );
 
 Ticks: @[;`sym;`p#]
@@ -37,9 +37,10 @@ Ticks: @[;`sym;`p#]
         time            :0Np;
         direction       :`;
         price           :0Nf;
-        vollume         :0Nj;
-        msgTime         :0Np;
-        recvTime        :0Np
+        volume          :0Nj;
+        msgtime         :0Np;
+        amount          :0Nf;
+        recvtime        :0Np
     );
 
 OrderBooks: @[;`sym;`p#]
@@ -49,6 +50,6 @@ OrderBooks: @[;`sym;`p#]
         level           :0Nh; //rank
         price           :0Nf;
         volume          :0Nj;
-        orderCount      :0Ni
+        ordercount      :0Ni
     );
 

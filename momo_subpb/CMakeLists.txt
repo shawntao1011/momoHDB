@@ -1,6 +1,7 @@
 add_library(kfkpb_core SHARED
         src/kfkpb_core.cpp
         src/decoders.cpp
+        src/print.cpp
 )
 target_include_directories(kfkpb_core
         PUBLIC
@@ -13,6 +14,7 @@ target_link_libraries(kfkpb_core
             futu_pb
             PkgConfig::RDKAFKA
             futu_openapi_protobuf
+            momo::schema
 )
 
 add_library(kfkpb SHARED

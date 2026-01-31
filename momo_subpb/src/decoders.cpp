@@ -69,10 +69,6 @@ bool decode_qot_update_basicquote(
     return true;
 }
 
-std::string serialize_basicquotebatch(const BasicQuoteBatch& batch) {
-
-}
-
 bool decode_qot_update_orderbook(
     const void* data,
     std::size_t len,
@@ -149,10 +145,6 @@ bool decode_qot_update_orderbook(
     return true;
 }
 
-std::string serialize_orderbookbatch(const OrderBookBatch& batch) {
-
-}
-
 bool decode_qot_update_ticker(
     const void* data,
     std::size_t len,
@@ -214,10 +206,6 @@ bool decode_qot_update_ticker(
     }
 
     return true;
-}
-
-std::string serialize_tickerbatch(const TickerBatch& batch) {
-
 }
 
 bool decode_qot_update_kl1min(
@@ -289,8 +277,4 @@ bool decode_qot_update_kl1min(
     }
 
     return true;
-}
-
-std::string serialize_kl1minbatch(const KL1MinBatch& batch) {
-
 }

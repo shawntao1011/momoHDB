@@ -2,7 +2,7 @@
 #include <fcntl.h>
 #include <iostream>
 
-#include "k.h"
+#include "print.hpp"
 #include "kfkpb_core.hpp"
 
 namespace {
@@ -136,6 +136,42 @@ void print_event(const KfkpbEvent& ev) {
               << ", " << payload_summary(ev)
               << "}";
 }
+
+void print_payload_table(const KfkpbEvent& ev, std::size_t limit = 20) {
+    if (ev.kind == KfkpbEvent::Kind::Error) {
+        return;
+    }
+
+    switch (ev.msg_type) {
+        case KfkpbMsgType::Ticker: {
+            if (auto b = std::get_if<TickerBatch>(&ev.payload)) {
+                pretty_print(*b, std::cout, limit);
+            }
+            break;
+        }
+        case KfkpbMsgType::OrderBook: {
+            if (auto b = std::get_if<OrderBookBatch>(&ev.payload)) {
+                pretty_print(*b, std::cout, limit);
+            }
+            break;
+        }
+        case KfkpbMsgType::BasicQuote: {
+            if (auto b = std::get_if<BasicQuoteBatch>(&ev.payload)) {
+                pretty_print(*b, std::cout, limit);
+            }
+            break;
+        }
+        case KfkpbMsgType::Kline1M: {
+            if (auto b = std::get_if<KL1MinBatch>(&ev.payload)) {
+                pretty_print(*b, std::cout, limit);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 } // namespace
 
 int main() {
@@ -183,6 +219,8 @@ int main() {
             client.drainTo(events);
             for (const auto& ev : events) {
                 print_event(ev);
+                std::cout << "\n";
+                print_payload_table(ev);
                 std::cout << "\n";
             }
         }

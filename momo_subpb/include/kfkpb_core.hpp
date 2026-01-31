@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <librdkafka/rdkafka.h>
 
-#include "momoDB_types.hpp"
+#include "schema.hpp"
 
 enum class KfkpbMsgType {
     BasicQuote,
