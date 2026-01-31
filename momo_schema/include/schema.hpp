@@ -1,8 +1,7 @@
 #pragma once
+
 #include <chrono>
 #include <string>
-
-#include "google/protobuf/stubs/port.h"
 
 struct BasicQuoteRow {
     std::string symbol;

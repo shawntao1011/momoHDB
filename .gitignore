@@ -100,11 +100,11 @@ _stage/
 # feedhandler config
 #----------------------------------------
 # Ignore all variants
-feedhandler/config/subscriptions.yaml
-feedhandler/config/subscriptions.*.yaml
-feedhandler/config/apps.yaml
-feedhandler/config/apps.*.yaml
+momo_feed/config/subscriptions.yaml
+momo_feed/config/subscriptions.*.yaml
+momo_feed/config/apps.yaml
+momo_feed/config/apps.*.yaml
 
 # But keep example
-!feedhandler/config/apps.example.yaml
-!feedhandler/config/subscriptions.example.yaml
+!momo_feed/config/apps.example.yaml
+!momo_feed/config/subscriptions.example.yaml
