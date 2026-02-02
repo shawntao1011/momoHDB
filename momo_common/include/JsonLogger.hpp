@@ -17,9 +17,9 @@
 #include <fmt/format.h>
 #include <filesystem>
 
-#include "config/Config.hpp"
-namespace logger {
+#include "config/LoggerConfig.hpp"
 
+namespace logger {
 // ------------------------------
 // Public types
 // ------------------------------

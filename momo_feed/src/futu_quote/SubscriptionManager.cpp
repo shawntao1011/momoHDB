@@ -9,7 +9,7 @@
 #include <thread>
 #include <utility>
 
-#include "common/JsonLogger.hpp"
+#include "../../../momo_common/include/JsonLogger.hpp"
 
 static std::size_t next_pow2(std::size_t v) {
     if (v < 2) return 2;

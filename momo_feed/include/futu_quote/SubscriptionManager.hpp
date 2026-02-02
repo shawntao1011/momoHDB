@@ -11,8 +11,8 @@
 
 #include "SubscriptionTools.hpp"
 #include "Subscription.hpp"
-#include "common/Envelope.hpp"
-#include "common/SPSCQueue.hpp"
+#include "../../../momo_common/include/Envelope.hpp"
+#include "../../../momo_common/include/SPSCQueue.hpp"
 #include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;

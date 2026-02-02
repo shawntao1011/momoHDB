@@ -18,6 +18,7 @@ add_library(feedhandler_futu_core OBJECT
 
 foreach(t feedhandler_config feedhandler_runtime feedhandler_sinks feedhandler_futu_core)
     target_include_directories(${t} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(${t} PUBLIC momo_common)
 endforeach()
 
 target_link_libraries(feedhandler_config PUBLIC yaml-cpp futu_openapi)
@@ -35,7 +36,7 @@ add_executable(futu_feeder
 target_compile_options(futu_feeder PRIVATE -fno-PIE)
 target_link_options(futu_feeder PRIVATE -no-pie)
 
-target_link_libraries(futu_feeder PRIVATE yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
+target_link_libraries(futu_feeder PRIVATE momo_common yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
 
 target_include_directories(futu_feeder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

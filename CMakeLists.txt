@@ -18,6 +18,7 @@ endif()
 pkg_check_modules(RDKAFKACPP REQUIRED IMPORTED_TARGET rdkafka++)
 pkg_check_modules(RDKAFKA   REQUIRED IMPORTED_TARGET rdkafka)
 
+add_subdirectory(momo_common)
 add_subdirectory(momo_schema)
 add_subdirectory(momo_feed)
 add_subdirectory(momo_subpb)

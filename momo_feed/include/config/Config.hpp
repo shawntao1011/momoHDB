@@ -4,25 +4,10 @@
 #include <variant>
 #include <vector>
 
-#include "OverflowPolicy.hpp"
+#include "config/LoggerConfig.hpp"
+#include "config/OverflowPolicy.hpp"
 
 namespace cfg {
-
-// ---------- logger ----------
-struct LoggerCfg {
-    std::string file_path{"logs/app.jsonl"};
-    bool also_console{true};
-    std::string level{"Info"};
-
-    std::size_t queue_size{1u << 16};
-    std::size_t worker_threads{1};
-    OverflowPolicy overflow{OverflowPolicy::DropOldest};
-
-    bool json{true};
-
-    std::string flush_on{"warn"};
-};
-
 // ---------- session ----------
 struct FutuSessionCfg {
     std::string opend_ip;
@@ -38,7 +23,7 @@ struct SubscriptionCfg {
 struct SubscriptionManagerCfg {
     int refresh_ms{5000};
     std::size_t capacity{1024};
-    OverflowPolicy overflow{OverflowPolicy::DropOldest};
+    cfg::OverflowPolicy overflow{cfg::OverflowPolicy::DropOldest};
     bool first_push{false};
 };
 
@@ -61,7 +46,7 @@ struct DownstreamCfg {
 
 // ---------- app ----------
 struct AppConfig {
-    LoggerCfg logger;
+    cfg::LoggerCfg logger;
     FutuSessionCfg futu;
     SubscriptionCfg subscription;
     SubscriptionManagerCfg submanager;
