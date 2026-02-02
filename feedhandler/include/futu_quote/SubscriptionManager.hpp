@@ -24,6 +24,7 @@ class SubscriptionManager {
         std::chrono::milliseconds refresh_interval{5000};
         std::size_t capacity{8192};
         queue::OverflowPolicy overflow{queue::OverflowPolicy::DropOldest};
+        bool first_push{false};
     };
 
     SubscriptionManager(Sink sink,
