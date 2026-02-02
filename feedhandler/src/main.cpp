@@ -81,7 +81,8 @@ int main (int argc, char *argv[]) {
             cfg.subscription.path,
             std::chrono::milliseconds{cfg.submanager.refresh_ms},
             cfg.submanager.capacity,
-            to_queue_overflow(cfg.submanager.overflow)
+            to_queue_overflow(cfg.submanager.overflow),
+            cfg.submanager.first_psuh
         });
    
     SessionCallbacks cbs;

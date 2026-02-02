@@ -399,6 +399,7 @@ Futu::u32_t SubscriptionManager::subscribe_api(const SecurityId& id, const std::
 
     pSubC2S->set_issuborunsub(true);
     pSubC2S->set_isregorunregpush(true);
+    pSubC2S->set_isfirstpush(opts_.first_push);
     auto sn = session_->sub(pbSub);
     logger::info("subman", "subscribe_sent",
                  {logger::num("serial", sn),

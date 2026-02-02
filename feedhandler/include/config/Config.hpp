@@ -39,6 +39,7 @@ struct SubscriptionManagerCfg {
     int refresh_ms{5000};
     std::size_t capacity{1024};
     OverflowPolicy overflow{OverflowPolicy::DropOldest};
+    bool first_push{false};
 };
 
 // ---------- sinks ----------
