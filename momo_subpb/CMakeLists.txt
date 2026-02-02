@@ -15,6 +15,7 @@ target_link_libraries(kfkpb_core
             PkgConfig::RDKAFKA
             futu_openapi_protobuf
             momo::schema
+            momo_common
 )
 
 add_library(kfkpb SHARED

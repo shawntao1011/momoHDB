@@ -1,12 +1,12 @@
 #pragma once
 #include <chrono>
 #include <condition_variable>
-#include <deque>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <librdkafka/rdkafka.h>
 
+#include "SPSCQueue.hpp"
 #include "schema.hpp"
 
 enum class KfkpbMsgType {
@@ -66,17 +66,21 @@ private:
         std::string key;
         std::vector<std::uint8_t> payload;
         std::int64_t ts_ms{0}; // rd_kafka_message_timestamp
+        bool is_error{false};
+        KfkpbMsgType error_type{KfkpbMsgType::Unknown};
+        std::string error_reason;
     };
 
     void consumerLoop();
-    void decodeLoop();
+    void decodeLoop(std::size_t worker_id);
 
     void notify();
 
-    bool popRaw(RawMsg& out);
+    bool popRaw(std::size_t worker_id, RawMsg& out);
     void pushRaw(RawMsg&& m);
 
-    void pushEvent(KfkpbEvent ev);
+    void pushEvent(std::size_t worker_id, KfkpbEvent ev);
+    std::size_t workerIndexFor(const RawMsg& msg);
 
 private:
     rd_kafka_t* rk_{nullptr};
@@ -95,15 +99,16 @@ private:
     // consumer thread
     std::thread consumer_th_;
 
-    // raw queue
-    std::mutex raw_mu_;
-    std::condition_variable raw_cv_;
-    std::deque<RawMsg> raw_q_;
+    // raw queues (consumer -> worker)
+    std::vector<std::unique_ptr<queue::SPSCQueue<RawMsg>>> raw_qs_;
+    std::vector<std::unique_ptr<std::mutex>> raw_mus_;
+    std::vector<std::unique_ptr<std::condition_variable>> raw_cvs_;
 
     // decode threads
     std::vector<std::thread> dec_ths_;
 
-    // event queue (K objects)
-    std::mutex evt_mu_;
-    std::deque<KfkpbEvent> evt_q_;
+    // event queues (worker -> writer)
+    std::vector<std::unique_ptr<queue::SPSCQueue<KfkpbEvent>>> evt_qs_;
+    std::atomic<std::size_t> drain_rr_{0};
+    std::atomic<std::size_t> fallback_rr_{0};
 };
