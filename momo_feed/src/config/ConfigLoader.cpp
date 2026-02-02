@@ -4,7 +4,7 @@
 #include <filesystem>
 
 #include "common/JsonLogger.hpp"
-#include "common/SPSCRing.hpp"
+#include "common/SPSCQueue.hpp"
 
 namespace fs = std::filesystem;
 

@@ -13,9 +13,9 @@ enum class OverflowPolicy {
 };
 
 template <class T>
-class SPSCRing {
+class SPSCQueue {
 public:
-    explicit SPSCRing(std::size_t capacity_pow2)
+    explicit SPSCQueue(std::size_t capacity_pow2)
         : cap_(capacity_pow2)
         , mask_(capacity_pow2 - 1)
         , buf_(capacity_pow2)
@@ -25,8 +25,8 @@ public:
         }
     }
 
-    SPSCRing(const SPSCRing&) = delete;
-    SPSCRing& operator=(const SPSCRing&) = delete;
+    SPSCQueue(const SPSCQueue&) = delete;
+    SPSCQueue& operator=(const SPSCQueue&) = delete;
 
     bool try_push(T&& v) {
         const std::size_t head = head_.load(std::memory_order_relaxed);

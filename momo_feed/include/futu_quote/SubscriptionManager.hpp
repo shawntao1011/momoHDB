@@ -12,7 +12,7 @@
 #include "SubscriptionTools.hpp"
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
-#include "common/SPSCRing.hpp"
+#include "common/SPSCQueue.hpp"
 #include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
@@ -69,7 +69,7 @@ private:
 private:
     Sink sink_;
     FutuQuoteSession* session_{nullptr};
-    queue::SPSCRing<Envelope> inbox_{1u << 16};
+    queue::SPSCQueue<Envelope> inbox_{1u << 16};
 
     SubscriptionLoadFn cfgloader_{nullptr};
     Options opts_;

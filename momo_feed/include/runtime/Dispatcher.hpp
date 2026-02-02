@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "common/Envelope.hpp"
-#include "common/SPSCRing.hpp"
+#include "common/SPSCQueue.hpp"
 
 class ISink {
 public:
@@ -31,7 +31,7 @@ private:
 
     std::string name_;
     std::unique_ptr<ISink> sink_;
-    queue::SPSCRing<std::shared_ptr<const Envelope>> q_{8192};
+    queue::SPSCQueue<std::shared_ptr<const Envelope>> q_{8192};
 
     std::atomic<bool> running_{false};
     std::thread worker_;
