@@ -48,7 +48,7 @@ namespace qipc {
     }
 
     // ========== 1) BasicQuoteBatch ==========
-    std::string serialize_basicquote_qipc(const BasicQuoteBatch& batch) {
+    bool serialize_basicquote_qipc(const BasicQuoteBatch& batch, std::vector<std::uint8_t>& out_kbytes) {
         static const std::vector<std::string_view> colnames = {
             "sym","time","spread","high","open","low","cur","lastclose",
             "volume","amount","turnoverrate","amplitude","updtime"
@@ -79,13 +79,12 @@ namespace qipc {
 
         emit_ts_col (b, n, rows, [](const BasicQuoteRow& r){ return r.updateTime; });
 
-        std::string out;
-        b.finish_ipc_and_return(out);
-        return out;
+        b.finish_ipc_and_return(out_kbytes);
+        return true;
     }
 
     // ========== 2) OrderBookBatch ==========
-    std::string serialize_orderbook_qipc(const OrderBookBatch& batch) {
+    bool serialize_orderbook_qipc(const OrderBookBatch& batch, std::vector<std::uint8_t>& out_kbytes) {
 
         static const std::vector<std::string_view> colnames = {
             "sym","time","side","level","price","volume","ordercount"
@@ -107,13 +106,12 @@ namespace qipc {
         emit_i64_col(b, n, rows, [](const OrderBookRow& r){ return r.volume; });
         emit_i32_col(b, n, rows, [](const OrderBookRow& r){ return r.orderCount; });
 
-        std::string out;
-        b.finish_ipc_and_return(out);
-        return out;
+        b.finish_ipc_and_return(out_kbytes);
+        return true;
     }
 
     // ========== 3) TickerBatch ==========
-    std::string serialize_ticker_qipc(const TickerBatch& batch) {
+    bool serialize_ticker_qipc(const TickerBatch& batch, std::vector<std::uint8_t>& out_kbytes) {
         static const std::vector<std::string_view> colnames = {
             "sym","time","direction","price","volume","turnover","amount","msgTime","recvTime"
         };
@@ -136,13 +134,12 @@ namespace qipc {
         emit_ts_col (b, n, rows, [](const TickerRow& r){ return r.msgTime; });
         emit_ts_col (b, n, rows, [](const TickerRow& r){ return r.recvTime; });
 
-        std::string out;
-        b.finish_ipc_and_return(out);
-        return out;
+        b.finish_ipc_and_return(out_kbytes);
+        return true;
     }
 
     // ========== 4) KL1MinBatch ==========
-    std::string serialize_kl1min_qipc(const KL1MinBatch& batch) {
+    bool serialize_kl1min_qipc(const KL1MinBatch& batch, std::vector<std::uint8_t>& out_kbytes) {
         static const std::vector<std::string_view> colnames = {
             "sym","time","high","open","low","close","lastclose","volume",
             "amount","turnoverrate","pe","changerate","recvtime","tstime"
@@ -174,8 +171,7 @@ namespace qipc {
         emit_ts_col (b, n, rows, [](const KL1MinRow& r){ return r.recvTime; });
         emit_ts_col (b, n, rows, [](const KL1MinRow& r){ return r.timestamp; });
 
-        std::string out;
-        b.finish_ipc_and_return(out);
-        return out;
+        b.finish_ipc_and_return(out_kbytes);
+        return true;
     }
 } //namespace qipc

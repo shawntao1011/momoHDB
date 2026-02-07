@@ -91,20 +91,23 @@ struct Builder {
         buf.resize(8, 0); // reserve IPC header
     }
 
-    void finish_ipc_and_return(std::string& out) {
+    void finish_ipc_and_return(std::vector<std::uint8_t>& out) {
         // fill IPC header
         buf[0] = 1; // little-endian
         buf[1] = 0; // msgtype
         buf[2] = 0; // no compression
         buf[3] = 0;
-        uint32_t total = static_cast<uint32_t>(buf.size());
-        buf[4] = uint8_t(total & 0xFF);
-        buf[5] = uint8_t((total >> 8) & 0xFF);
-        buf[6] = uint8_t((total >> 16) & 0xFF);
-        buf[7] = uint8_t((total >> 24) & 0xFF);
 
-        out.assign(reinterpret_cast<const char*>(buf.data()), buf.size());
+        const uint32_t total = static_cast<uint32_t>(buf.size());
+        buf[4] = static_cast<std::uint8_t>( total        & 0xFF);
+        buf[5] = static_cast<std::uint8_t>((total >> 8 ) & 0xFF);
+        buf[6] = static_cast<std::uint8_t>((total >> 16) & 0xFF);
+        buf[7] = static_cast<std::uint8_t>((total >> 24) & 0xFF);
+
+        // binary copy
+        out = std::move(buf);
     }
+
 };
 
 } // namespace qipc

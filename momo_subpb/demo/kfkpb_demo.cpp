@@ -1,11 +1,20 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <string>
+#include <vector>
+#include <unordered_map>
 
-#include "print.hpp"
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "kfkpb_core.hpp"
 
 namespace {
+
 struct KafkaSettings {
     std::string bootstrap_servers{"192.168.2.209:9092"};
     std::string group_id{"kfkpb_demo_earliest"};
@@ -42,87 +51,51 @@ rd_kafka_t* create_consumer(const KafkaSettings& settings) {
 void set_nonblock(int fd) {
     const int flags = fcntl(fd, F_GETFL, 0);
     if (flags >= 0) {
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        (void)fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
 }
 
 void drain_notify_fd(int fd) {
     char buf[256];
     while (true) {
-        const ssize_t n = recv(fd, buf, sizeof(buf), 0);
-        if (n > 0) {
-            continue;
-        }
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            break;
-        }
+        const ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
+        if (n > 0) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
         break;
     }
 }
 
 const char* kind_to_string(KfkpbEvent::Kind kind) {
     switch (kind) {
-        case KfkpbEvent::Kind::Data:
-            return "data";
-        case KfkpbEvent::Kind::Error:
-            return "error";
-        default:
-            return "unknown";
+        case KfkpbEvent::Kind::Data:  return "data";
+        case KfkpbEvent::Kind::Error: return "error";
+        default:                      return "unknown";
     }
 }
 
 const char* msg_type_to_string(KfkpbMsgType type) {
     switch (type) {
-        case KfkpbMsgType::Ticker:
-            return "ticker";
-        case KfkpbMsgType::OrderBook:
-            return "orderbook";
-        case KfkpbMsgType::BasicQuote:
-            return "basicquote";
-        case KfkpbMsgType::Kline1M:
-            return "kl1min";
-        default:
-            return "unknown";
+        case KfkpbMsgType::Ticker:     return "ticker";
+        case KfkpbMsgType::OrderBook:  return "orderbook";
+        case KfkpbMsgType::BasicQuote: return "basicquote";
+        case KfkpbMsgType::Kline1M:    return "kl1min";
+        default:                       return "unknown";
     }
 }
 
-std::string payload_summary(const KfkpbEvent& ev) {
-    if (ev.kind == KfkpbEvent::Kind::Error) {
-        if (auto raw = std::get_if<std::vector<std::uint8_t>>(&ev.payload)) {
-            return "raw_bytes=" + std::to_string(raw->size());
-        }
-        return "raw_bytes=0";
+static std::string hex_prefix(const std::vector<std::uint8_t>& b, std::size_t limit = 32) {
+    static const char* hexd = "0123456789abcdef";
+    const std::size_t n = std::min(limit, b.size());
+    std::string s;
+    s.reserve(n * 2 + 3);
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::uint8_t v = b[i];
+        s.push_back(hexd[(v >> 4) & 0xF]);
+        s.push_back(hexd[v & 0xF]);
+        if (i + 1 != n) s.push_back(' ');
     }
-
-    switch (ev.msg_type) {
-        case KfkpbMsgType::Ticker: {
-            if (auto b = std::get_if<TickerBatch>(&ev.payload)) {
-                return "rows=" + std::to_string(b->rows.size());
-            }
-            break;
-        }
-        case KfkpbMsgType::OrderBook: {
-            if (auto b = std::get_if<OrderBookBatch>(&ev.payload)) {
-                return "rows=" + std::to_string(b->rows.size());
-            }
-            break;
-        }
-        case KfkpbMsgType::BasicQuote: {
-            if (auto b = std::get_if<BasicQuoteBatch>(&ev.payload)) {
-                return "rows=" + std::to_string(b->rows.size());
-            }
-            break;
-        }
-        case KfkpbMsgType::Kline1M: {
-            if (auto b = std::get_if<KL1MinBatch>(&ev.payload)) {
-                return "rows=" + std::to_string(b->rows.size());
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    return "rows=0";
+    if (b.size() > n) s += " ...";
+    return s;
 }
 
 void print_event(const KfkpbEvent& ev) {
@@ -131,45 +104,22 @@ void print_event(const KfkpbEvent& ev) {
               << ", type=" << msg_type_to_string(ev.msg_type)
               << ", topic=" << ev.topic
               << ", key=" << ev.key
-              << ", ingest_ms=" << ev.ingest_ms
-              << ", reason=" << ev.reason
-              << ", " << payload_summary(ev)
-              << "}";
-}
+              << ", ts_ms=" << ev.ts_ns;
 
-void print_payload_table(const KfkpbEvent& ev, std::size_t limit = 20) {
     if (ev.kind == KfkpbEvent::Kind::Error) {
-        return;
+        std::cout << ", err=" << (ev.err_msg[0] ? ev.err_msg : "(none)")
+                  << ", raw_bytes=" << ev.raw.size();
+        if (!ev.raw.empty()) {
+            std::cout << ", raw_hex=" << hex_prefix(ev.raw, 24);
+        }
+    } else {
+        std::cout << ", kbytes=" << ev.kbytes.size();
+        if (!ev.kbytes.empty()) {
+            std::cout << ", kbytes_hex=" << hex_prefix(ev.kbytes, 24);
+        }
     }
 
-    switch (ev.msg_type) {
-        case KfkpbMsgType::Ticker: {
-            if (auto b = std::get_if<TickerBatch>(&ev.payload)) {
-                pretty_print(*b, std::cout, limit);
-            }
-            break;
-        }
-        case KfkpbMsgType::OrderBook: {
-            if (auto b = std::get_if<OrderBookBatch>(&ev.payload)) {
-                pretty_print(*b, std::cout, limit);
-            }
-            break;
-        }
-        case KfkpbMsgType::BasicQuote: {
-            if (auto b = std::get_if<BasicQuoteBatch>(&ev.payload)) {
-                pretty_print(*b, std::cout, limit);
-            }
-            break;
-        }
-        case KfkpbMsgType::Kline1M: {
-            if (auto b = std::get_if<KL1MinBatch>(&ev.payload)) {
-                pretty_print(*b, std::cout, limit);
-            }
-            break;
-        }
-        default:
-            break;
-    }
+    std::cout << "}";
 }
 
 } // namespace
@@ -177,7 +127,7 @@ void print_payload_table(const KfkpbEvent& ev, std::size_t limit = 20) {
 int main() {
     try {
         int notify_fds[2]{-1, -1};
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, notify_fds) != 0) {
+        if (::socketpair(AF_UNIX, SOCK_STREAM, 0, notify_fds) != 0) {
             std::cerr << "socketpair failed: " << std::strerror(errno) << "\n";
             return 1;
         }
@@ -192,14 +142,14 @@ int main() {
         KfkpbClient client(rk, notify_fds[0], cfg);
 
         std::unordered_map<std::string, KfkpbMsgType> topics{
-                {"futu.ticker.pb", KfkpbMsgType::Ticker},
-                {"futu.orderbook.pb", KfkpbMsgType::OrderBook},
-                {"futu.basicqot.pb", KfkpbMsgType::BasicQuote},
-                {"futu.kl_1m.pb", KfkpbMsgType::Kline1M},
-            };
+            {"futu.ticker.pb",     KfkpbMsgType::Ticker},
+            {"futu.orderbook.pb",  KfkpbMsgType::OrderBook},
+            {"futu.basicqot.pb",   KfkpbMsgType::BasicQuote},
+            {"futu.kl_1m.pb",      KfkpbMsgType::Kline1M},
+        };
         client.subscribe(std::move(topics));
 
-        std::cout << "kfkpb demo started. Waiting for events..." << std::endl;
+        std::cout << "kfkpb demo started. Waiting for events...\n";
 
         while (true) {
             fd_set rfds;
@@ -210,17 +160,16 @@ int main() {
             tv.tv_sec = 1;
             tv.tv_usec = 0;
 
-            const int rc = select(notify_fds[1] + 1, &rfds, nullptr, nullptr, &tv);
+            const int rc = ::select(notify_fds[1] + 1, &rfds, nullptr, nullptr, &tv);
             if (rc > 0 && FD_ISSET(notify_fds[1], &rfds)) {
                 drain_notify_fd(notify_fds[1]);
             }
 
             std::vector<KfkpbEvent> events;
             client.drainTo(events);
+
             for (const auto& ev : events) {
                 print_event(ev);
-                std::cout << "\n";
-                print_payload_table(ev);
                 std::cout << "\n";
             }
         }

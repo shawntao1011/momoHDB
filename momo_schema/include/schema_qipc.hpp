@@ -4,11 +4,11 @@
 #include "schema.hpp"
 
 namespace qipc {
-    std::string serialize_basicquote_qipc(const BasicQuoteBatch& batch);
+    bool serialize_basicquote_qipc(const BasicQuoteBatch& batch, std::vector<std::uint8_t>& out_kbytes);
 
-    std::string serialize_orderbook_qipc(const OrderBookBatch& batch);
+    bool serialize_orderbook_qipc(const OrderBookBatch& batch, std::vector<std::uint8_t>& out_kbytes);
 
-    std::string serialize_ticker_qipc(const TickerBatch& batch);
+    bool serialize_ticker_qipc(const TickerBatch& batch, std::vector<std::uint8_t>& out_kbytes);
 
-    std::string serialize_kl1min_qipc(const KL1MinBatch& batch);
+    bool serialize_kl1min_qipc(const KL1MinBatch& batch, std::vector<std::uint8_t>& out_kbytes);
 } //namespace qipc

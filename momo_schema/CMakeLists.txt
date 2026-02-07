@@ -12,6 +12,7 @@ add_library(momo_qcodec STATIC
         src/schema_qipc.cpp
 )
 add_library(momo::qcodec ALIAS momo_qcodec)
+target_compile_options(momo_qcodec PRIVATE -fPIC)
 
 target_include_directories(momo_qcodec
         PUBLIC
