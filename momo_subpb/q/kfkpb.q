@@ -24,4 +24,10 @@ unsubscribe:{
 
  }
 
+/ k (symbol) - key
+/ x (bytes) - kafka message content
+upd:{[k; x]
+ msg:-9!x;
+ }
+
 \d .

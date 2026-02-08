@@ -1,7 +1,7 @@
 #include "decoders.hpp"
 #include "parse_helpers.hpp"
 #include "schema.hpp"
-#include "schema_qipc.hpp"
+#include "qipc.hpp"
 
 #include "Proto/Qot_UpdateBasicQot.pb.h"
 #include "Proto/Qot_UpdateKL.pb.h"
@@ -236,7 +236,7 @@ bool decode_ticker_kbytes(
         if (t.has_dir())        row.direction = (int32_t)t.dir();
         if (t.has_price())      row.price    = t.price();
         if (t.has_volume())     row.volume   = (int64_t)t.volume();
-        if (t.has_turnover())   row.turnover = t.turnover();
+        if (t.has_turnover())   row.amount = t.turnover();
 
         if (t.has_time())       row.msgTime  = parse_time_utc_string(t.time());
         if (t.has_recvtime())   row.recvTime = parse_time_epoch_sec(t.recvtime());

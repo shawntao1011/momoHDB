@@ -127,11 +127,11 @@ void KfkpbClient::subscribe(std::unordered_map<std::string, KfkpbMsgType> topics
     cfg_cv_.notify_all();
 }
 
-void KfkpbClient::subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType> topics, std::int64_t ts_ms) {
+void KfkpbClient::subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType> topics, std::int64_t ts_ns) {
     {
         std::lock_guard<std::mutex> lk(cfg_mu_);
         topicTypes_ = std::move(topics);
-        seekFromMs_ = ts_ms;
+        seekFromMs_ = ts_ns;
         cfgEpoch_++;
     }
     cfg_cv_.notify_all();
@@ -195,7 +195,7 @@ void KfkpbClient::consumerLoop() {
         }
 
         if (seekFromMs_) {
-            const int64_t ts_ms = *seekFromMs_;
+            const int64_t ts_ns = *seekFromMs_;
             rd_kafka_topic_partition_list_t* assn = nullptr;
             bool got = false;
 
@@ -222,7 +222,7 @@ void KfkpbClient::consumerLoop() {
                 return;
             }
 
-            for (int i = 0; i < assn->cnt; ++i) assn->elems[i].offset = ts_ms;
+            for (int i = 0; i < assn->cnt; ++i) assn->elems[i].offset = ts_ns;
 
             rd_kafka_resp_err_t oe = rd_kafka_offsets_for_times(rk_, assn, 5000);
             if (oe != RD_KAFKA_RESP_ERR_NO_ERROR) {
@@ -313,7 +313,7 @@ void KfkpbClient::decodeLoop(std::size_t worker_id) {
             ev.msg_type = KfkpbMsgType::Unknown;
             ev.topic = std::move(m.topic);
             ev.key = std::move(m.key);
-            ev.ts_ns = m.ts_ns;
+            ev.ingest_ns = m.ts_ns;
             std::memcpy(ev.err_msg, m.err_msg, sizeof(ev.err_msg));
             pushEvent(worker_id, std::move(ev));
             continue;
@@ -333,7 +333,7 @@ void KfkpbClient::decodeLoop(std::size_t worker_id) {
             ev.msg_type = KfkpbMsgType::Unknown;
             ev.topic = m.topic;
             ev.key = m.key;
-            ev.ts_ns = m.ts_ns;
+            ev.ingest_ns = m.ts_ns;
             set_err(ev.err_msg, sizeof(ev.err_msg), "unknown topic mapping");
             pushEvent(worker_id, std::move(ev));
             continue;
@@ -347,7 +347,7 @@ void KfkpbClient::decodeLoop(std::size_t worker_id) {
         out.msg_type = mt;
         out.topic = m.topic;
         out.key = m.key;
-        out.ts_ns = m.ts_ns;
+        out.ingest_ns = m.ts_ns;
 
         char em[96]{0};
         bool ok = false;
@@ -370,7 +370,7 @@ void KfkpbClient::decodeLoop(std::size_t worker_id) {
             err.msg_type = mt;
             err.topic = std::move(m.topic);
             err.key = std::move(m.key);
-            err.ts_ns = m.ts_ns;
+            err.ingest_ns = m.ts_ns;
             if (em[0] == '\0') set_err(err.err_msg, sizeof(err.err_msg), "decode failed");
             else std::memcpy(err.err_msg, em, sizeof(err.err_msg));
             pushEvent(worker_id, std::move(err));

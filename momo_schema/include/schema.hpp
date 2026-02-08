@@ -41,7 +41,7 @@ struct TickerRow {
     int32_t direction;
     double price;
     int64_t volume;
-    double turnover;
+    double amount; // message turnover
     std::chrono::system_clock::time_point msgTime; // message "time"
     std::chrono::system_clock::time_point recvTime; // message "recvTime"
 };

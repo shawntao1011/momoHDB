@@ -1,4 +1,4 @@
-#include "schema_qipc.hpp"
+#include "qipc.hpp"
 #include "schema.hpp"
 
 #include <iostream>
@@ -6,12 +6,18 @@
 #include <sstream>
 
 // -------- helper: print bytes as 0x.... --------
-static void print_hex(const std::string& name, const std::string& bytes) {
+static void print_hex(
+    const std::string& name,
+    const std::vector<std::uint8_t>& bytes
+) {
     std::ostringstream oss;
     oss << "==== " << name << " ====\n0x";
-    for (unsigned char c : bytes) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+
+    oss << std::hex << std::setfill('0');
+    for (std::uint8_t b : bytes) {
+        oss << std::setw(2) << static_cast<int>(b);
     }
+
     oss << "\n\n";
     std::cout << oss.str();
 }
@@ -47,8 +53,11 @@ int main() {
         tp_from_ns_since_unix(1769853158369900000LL)
     });
 
-    auto quoteBytes = qipc::serialize_basicquote_qipc(quoteBatch);
-    print_hex("BasicQuote", quoteBytes);
+    std::vector<std::uint8_t> out_kbytes;
+    auto res = qipc::serialize_basicquote_qipc(quoteBatch, out_kbytes);
+    if (res) {
+        print_hex("BasicQuote", out_kbytes);
+    }
 
     // =========================================================
     // 2) OrderBook
@@ -64,8 +73,10 @@ int main() {
         8           // orderCount
     });
 
-    auto obBytes = qipc::serialize_orderbook_qipc(obBatch);
-    print_hex("OrderBook", obBytes);
+    res = qipc::serialize_orderbook_qipc(obBatch, out_kbytes);
+    if (res) {
+        print_hex("OrderBook", out_kbytes);
+    }
 
     // =========================================================
     // 3) Ticker
@@ -82,8 +93,10 @@ int main() {
         tp_from_ns_since_unix(1769853158370000000LL)  // recvTime
     });
 
-    auto tickerBytes = qipc::serialize_ticker_qipc(tickerBatch);
-    print_hex("Ticker", tickerBytes);
+    auto tickerBytes = qipc::serialize_ticker_qipc(tickerBatch, out_kbytes);
+    if (res) {
+        print_hex("Ticker", out_kbytes);
+    }
 
     // =========================================================
     // 4) KL1Min
@@ -106,8 +119,10 @@ int main() {
         tp_from_ns_since_unix(1769853120000000000LL)  // timestamp
     });
 
-    auto klBytes = qipc::serialize_kl1min_qipc(klBatch);
-    print_hex("KL1Min", klBytes);
+    auto klBytes = qipc::serialize_kl1min_qipc(klBatch, out_kbytes);
+    if (res) {
+        print_hex("KL1Min", out_kbytes);
+    }
 
     return 0;
 }

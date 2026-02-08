@@ -34,16 +34,13 @@ struct KfkpbEvent {
 
     std::string topic;
     std::string key;
-    std::int64_t ts_ns{0};
+    std::int64_t ingest_ns{0};
 
     // success: decoded kbytes (for q-thread to wrap as KG)
     std::vector<std::uint8_t> kbytes;
 
     // error: fixed size message
     char err_msg[96]{0};
-
-    // optional raw payload for debugging
-    std::vector<std::uint8_t> raw;
 };
 
 // Minimal internal decoder signature (runs in C++ decode threads)
@@ -51,7 +48,7 @@ struct KfkpbEvent {
 using DecodeFn = bool (*)(
     const std::uint8_t* key, std::size_t key_len,
     const std::uint8_t* payload, std::size_t payload_len,
-    std::int64_t ts_ms,
+    std::int64_t ts_ns,
     std::vector<std::uint8_t>& out_kbytes,
     char* err_msg, std::size_t err_cap
 );
@@ -73,7 +70,7 @@ public:
 
     // q-side: subscribe topic -> message type (decoder is chosen by internal registry)
     void subscribe(std::unordered_map<std::string, KfkpbMsgType> topics);
-    void subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType> topics, std::int64_t ts_ms);
+    void subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType> topics, std::int64_t ts_ns);
 
     void drainTo(std::vector<KfkpbEvent>& out);
 

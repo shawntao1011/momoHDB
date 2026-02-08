@@ -1,4 +1,4 @@
-#include "schema_qipc.hpp"
+#include "qipc.hpp"
 
 #include "qcodec.hpp"
 
@@ -113,7 +113,7 @@ namespace qipc {
     // ========== 3) TickerBatch ==========
     bool serialize_ticker_qipc(const TickerBatch& batch, std::vector<std::uint8_t>& out_kbytes) {
         static const std::vector<std::string_view> colnames = {
-            "sym","time","direction","price","volume","turnover","amount","msgTime","recvTime"
+            "sym","time","direction","price","volume","amount","msgTime","recvTime"
         };
 
         qipc::Builder b;
@@ -129,7 +129,7 @@ namespace qipc {
         emit_i32_col(b, n, rows, [](const TickerRow& r){ return r.direction; });
         emit_f64_col(b, n, rows, [](const TickerRow& r){ return r.price; });
         emit_i64_col(b, n, rows, [](const TickerRow& r){ return r.volume; });
-        emit_f64_col(b, n, rows, [](const TickerRow& r){ return r.turnover; });
+        emit_f64_col(b, n, rows, [](const TickerRow& r){ return r.amount; });
 
         emit_ts_col (b, n, rows, [](const TickerRow& r){ return r.msgTime; });
         emit_ts_col (b, n, rows, [](const TickerRow& r){ return r.recvTime; });
