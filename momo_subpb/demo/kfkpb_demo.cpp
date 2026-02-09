@@ -85,41 +85,42 @@ const char* msg_type_to_string(KfkpbMsgType type) {
 
 static std::string hex_prefix(const std::vector<std::uint8_t>& b, std::size_t limit = 32) {
     static const char* hexd = "0123456789abcdef";
-    const std::size_t n = std::min(limit, b.size());
+    const std::size_t n = b.size();
     std::string s;
     s.reserve(n * 2 + 3);
+
+    s.push_back('0');
+    s.push_back('x');
+
     for (std::size_t i = 0; i < n; ++i) {
         const std::uint8_t v = b[i];
         s.push_back(hexd[(v >> 4) & 0xF]);
         s.push_back(hexd[v & 0xF]);
-        if (i + 1 != n) s.push_back(' ');
     }
-    if (b.size() > n) s += " ...";
+
     return s;
 }
 
-void print_event(const KfkpbEvent& ev) {
-    std::cout << "event{"
+static void print_event(const KfkpbEvent& ev) {
+    std::cout << "event{" << std::endl
               << "etype=" << kind_to_string(ev.kind)
               << ", type=" << msg_type_to_string(ev.msg_type)
               << ", topic=" << ev.topic
               << ", key=" << ev.key
-              << ", ts_ms=" << ev.ts_ns;
+              << ", ts_ns=" << ev.ingest_ns;
 
     if (ev.kind == KfkpbEvent::Kind::Error) {
-        std::cout << ", err=" << (ev.err_msg[0] ? ev.err_msg : "(none)")
-                  << ", raw_bytes=" << ev.raw.size();
-        if (!ev.raw.empty()) {
-            std::cout << ", raw_hex=" << hex_prefix(ev.raw, 24);
-        }
-    } else {
-        std::cout << ", kbytes=" << ev.kbytes.size();
-        if (!ev.kbytes.empty()) {
-            std::cout << ", kbytes_hex=" << hex_prefix(ev.kbytes, 24);
-        }
+        std::cout << ", err=" << (ev.err_msg[0] ? ev.err_msg : "(none)");
     }
 
-    std::cout << "}";
+    std::cout << ", kbytes_length=" << ev.kbytes.size();
+
+    if (!ev.kbytes.empty()) {
+        std::cout << ",\nkbytes_hex=" << hex_prefix(ev.kbytes);
+    }
+
+    std::cout << std::endl;
+    std::cout << "}\n";
 }
 
 } // namespace
