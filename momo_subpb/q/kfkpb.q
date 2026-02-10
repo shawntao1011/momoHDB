@@ -14,9 +14,10 @@ cfg:(!) . flip(
     );
 
 consumecb:{[msg]
- show("msg received");
+ tbl: -9!msg;
+ show tbl;
  }
 
 init[];
 client:initConsumer[cfg];
-subscribe[client;(`futu.basicqot.pb;`futu.ticker.pb)];
+subscribe[client;(`futu.basicqot.pb;`futu.ticker.pb;`futu.orderbook.pb;`futu.kl1min.pb)];

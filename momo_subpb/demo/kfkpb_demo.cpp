@@ -146,7 +146,7 @@ int main() {
             {"futu.ticker.pb",     KfkpbMsgType::Ticker},
             {"futu.orderbook.pb",  KfkpbMsgType::OrderBook},
             {"futu.basicqot.pb",   KfkpbMsgType::BasicQuote},
-            {"futu.kl_1m.pb",      KfkpbMsgType::Kline1M},
+            {"futu.kl1min.pb",      KfkpbMsgType::Kline1M},
         };
         client.subscribe(std::move(topics));
 

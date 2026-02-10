@@ -28,7 +28,6 @@ static std::atomic<bool> g_inited{false};
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
-static S sym(const char* s) { return ss(const_cast<char*>(s)); }
 
 static const char* msg_type_name(KfkpbMsgType t) {
     switch (t) {
@@ -44,6 +43,21 @@ static const char* kind_name(KfkpbEvent::Kind k) {
     return (k == KfkpbEvent::Kind::Data) ? "data" : "error";
 }
 
+static KfkpbMsgType infer_type_from_topic(const std::string& topic) {
+    if (topic.find("basicqot") != std::string::npos ||
+        topic.find("basicqquote") != std::string::npos)
+        return KfkpbMsgType::BasicQuote;
+    if (topic.find("orderbook") != std::string::npos)
+        return KfkpbMsgType::OrderBook;
+    if (topic.find("ticker") != std::string::npos)
+        return KfkpbMsgType::Ticker;
+    if (topic.find("kline") != std::string::npos ||
+        topic.find("kl1m")  != std::string::npos)
+        return KfkpbMsgType::Kline1M;
+
+    return KfkpbMsgType::Unknown;
+}
+
 static K make_kbytes(const std::vector<std::uint8_t>& buf) {
     K b = ktn(KG, (J)buf.size());
     if (!buf.empty()) std::memcpy(kG(b), buf.data(), buf.size());
@@ -56,23 +70,29 @@ static std::unordered_map<std::string, KfkpbMsgType>
 parse_topics(K topics) {
     std::unordered_map<std::string, KfkpbMsgType> out;
 
-    // --------------------------------------------------
-    // case 1: symbol list  (`topic1;`topic2)
-    // --------------------------------------------------
-    if (topics->t == KS) {
-        for (J i = 0; i < topics->n; ++i) {
-            out.emplace(kS(topics)[i], KfkpbMsgType::Unknown);
+    if (topics->t != KS)
+        throw std::runtime_error("topics must be symbol list");
+
+    for (J i = 0; i < topics->n; ++i) {
+        std::string topic = kS(topics)[i];
+        auto mt = infer_type_from_topic(topic);
+
+        if (mt == KfkpbMsgType::Unknown) {
+            throw std::runtime_error(
+                "cannot infer msg type from topic: " + topic
+            );
         }
-        return out;
+
+        out.emplace(std::move(topic), mt);
     }
 
-    throw std::runtime_error("topics must be symbol list or dict");
+    return out;
 }
 
 // ------------------------------------------------------------
 // callback
 // ------------------------------------------------------------
-static K kfkpb_callback(int) {
+static K kfkpb_callback(int d) {
     std::vector<KfkpbEvent> evs;
     {
         std::lock_guard<std::mutex> lk(g_mu);
@@ -83,7 +103,6 @@ static K kfkpb_callback(int) {
     for (const auto& ev : evs) {
         K data = make_kbytes(ev.data);
         k(0, (S)".kfkpb.consumecb", data, (K)0);
-        r0(data);
     }
 
     return (K)0;
@@ -137,7 +156,7 @@ static rd_kafka_t* build_default_consumer() {
 // ------------------------------------------------------------
 extern "C" {
 
-    K kfkpb_init() {
+K kfkpb_init() {
         if (g_inited.exchange(true)) return ki(g_handle);
 
         if (socketpair(AF_LOCAL, SOCK_STREAM, 0, g_fd) != 0)

@@ -124,7 +124,7 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
 void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.kl_1m.pb";
+    e.topic = "futu.kl1min.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
     e.ts_ns = now_ns();
