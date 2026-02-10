@@ -1,33 +1,22 @@
 \d .kfkpb
 
+init:`libkfkpb 2:(`kfkpb_init;1);
+
+initConsumer:`libkfkpb 2:(`kfkpb_initConsumer;1);
+
+subscribe:`libkfkpb 2:(`kfkpb_subscribe;2);
+
+cfg:(!) . flip(
+    (`metadata.broker.list;`192.168.2.209:9092);
+    (`group.id;`0);
+    (`fetch.wait.max.ms;`10);
+    (`statistics.interval.ms;`10000)
+    );
+
+consumecb:{[msg]
+ show("msg received");
+ }
+
 init[];
-
-initConsumer:{[conf]
-
- }
-
-closeConsumer:{[client]
-
- }
-
-subscribe:{[h; topics; cbs]
-
- }
-
-subscribeFromTime:{[h; topics; ts; cbs]
-
- }
-
-// kafka subscribed topic is bound with client lifecycle
-// so kafka unsubscribe can not specify topic, which differs from .u.del
-unsubscribe:{
-
- }
-
-/ k (symbol) - key
-/ x (bytes) - kafka message content
-upd:{[k; x]
- msg:-9!x;
- }
-
-\d .
+client:initConsumer[cfg];
+subscribe[client;(`futu.basicqot.pb;`futu.ticker.pb)];

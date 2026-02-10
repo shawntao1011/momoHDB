@@ -96,10 +96,10 @@ private:
 
     void notify();
 
-    bool popRaw(std::size_t worker_id, RawMsg& out);
-    void pushRaw(RawMsg&& m);
+    bool popRaw(std::size_t worker_id, std::unique_ptr<RawMsg>& out);
+    void pushRaw(std::unique_ptr<RawMsg> m);
 
-    void pushEvent(std::size_t worker_id, KfkpbEvent&& ev);
+    void pushEvent(std::size_t worker_id, std::unique_ptr<KfkpbEvent> ev);
 
     std::size_t workerIndexFor(const RawMsg& msg);
 
@@ -124,10 +124,10 @@ private:
     std::vector<std::thread> dec_ths_;
 
     // queues
-    std::vector<std::unique_ptr<queue::SPSCQueue<RawMsg>>> raw_qs_;
+    std::vector<std::unique_ptr<queue::SPSCQueue<std::unique_ptr<RawMsg>>>> raw_qs_;
     std::vector<std::unique_ptr<std::atomic<std::uint64_t>>> raw_epochs_;
 
-    std::vector<std::unique_ptr<queue::SPSCQueue<KfkpbEvent>>> evt_qs_;
+    std::vector<std::unique_ptr<queue::SPSCQueue<std::unique_ptr<KfkpbEvent>>>> evt_qs_;
     std::atomic<std::size_t> drain_rr_{0};
     std::atomic<std::size_t> fallback_rr_{0};
 };
