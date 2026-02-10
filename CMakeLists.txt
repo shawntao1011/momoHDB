@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(momo_db LANGUAGES C CXX)
+project(momo_hdb LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,5 +18,7 @@ endif()
 pkg_check_modules(RDKAFKACPP REQUIRED IMPORTED_TARGET rdkafka++)
 pkg_check_modules(RDKAFKA   REQUIRED IMPORTED_TARGET rdkafka)
 
-add_subdirectory(feedhandler)
-add_subdirectory(kafka_pb_consumer)
+add_subdirectory(momo_common)
+add_subdirectory(momo_schema)
+add_subdirectory(momo_feed)
+add_subdirectory(momo_subpb)
