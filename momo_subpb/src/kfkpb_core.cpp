@@ -17,6 +17,11 @@ static std::size_t next_pow2(std::size_t v) {
     return v + 1;
 }
 
+static std::int64_t ns_to_ms(std::int64_t ts_ns) {
+    constexpr std::int64_t kNsPerMs = 1'000'000;
+    return ts_ns / kNsPerMs;
+}
+
 static void set_err(char* dst, std::size_t cap, const char* s) {
     if (!dst || cap == 0) return;
     if (!s) { dst[0] = '\0'; return; }
@@ -78,11 +83,9 @@ KfkpbClient::KfkpbClient(rd_kafka_t* rk, int notify_fd, ThreadCfg cfg)
     raw_qs_.reserve(cfg_.decode_threads);
     evt_qs_.reserve(cfg_.decode_threads);
 
-    raw_mus_.resize(cfg_.decode_threads);
-    raw_cvs_.resize(cfg_.decode_threads);
+    raw_epochs_.resize(cfg_.decode_threads);
     for (std::size_t i = 0; i < cfg_.decode_threads; ++i) {
-        raw_mus_[i] = std::make_unique<std::mutex>();
-        raw_cvs_[i] = std::make_unique<std::condition_variable>();
+        raw_epochs_[i] = std::make_unique<std::atomic<std::uint64_t>>(0);
     }
 
     const std::size_t raw_cap = next_pow2(cfg_.max_raw_queue + 1);
@@ -105,7 +108,11 @@ KfkpbClient::~KfkpbClient() {
     stop_.store(true, std::memory_order_relaxed);
 
     cfg_cv_.notify_all();
-    for (auto& cv : raw_cvs_) if (cv) cv->notify_all();
+    for (auto& ep : raw_epochs_) {
+        if (!ep) continue;
+        ep->fetch_add(1, std::memory_order_release);
+        std::atomic_notify_all(ep.get());
+    }
 
     if (consumer_th_.joinable()) consumer_th_.join();
     for (auto& t : dec_ths_) if (t.joinable()) t.join();
@@ -131,7 +138,7 @@ void KfkpbClient::subscribeFromTime(std::unordered_map<std::string, KfkpbMsgType
     {
         std::lock_guard<std::mutex> lk(cfg_mu_);
         topicTypes_ = std::move(topics);
-        seekFromMs_ = ts_ns;
+        seekFromMs_ = ns_to_ms(ts_ns);
         cfgEpoch_++;
     }
     cfg_cv_.notify_all();
@@ -195,7 +202,7 @@ void KfkpbClient::consumerLoop() {
         }
 
         if (seekFromMs_) {
-            const int64_t ts_ns = *seekFromMs_;
+            const int64_t ts_ms = *seekFromMs_;
             rd_kafka_topic_partition_list_t* assn = nullptr;
             bool got = false;
 
@@ -222,7 +229,7 @@ void KfkpbClient::consumerLoop() {
                 return;
             }
 
-            for (int i = 0; i < assn->cnt; ++i) assn->elems[i].offset = ts_ns;
+            for (int i = 0; i < assn->cnt; ++i) assn->elems[i].offset = ts_ms;
 
             rd_kafka_resp_err_t oe = rd_kafka_offsets_for_times(rk_, assn, 5000);
             if (oe != RD_KAFKA_RESP_ERR_NO_ERROR) {
@@ -387,14 +394,19 @@ void KfkpbClient::notify() {
 }
 
 bool KfkpbClient::popRaw(std::size_t worker_id, RawMsg& out) {
-    std::unique_lock<std::mutex> lk(*raw_mus_[worker_id]);
     auto& q = *raw_qs_[worker_id];
+    auto& epoch = *raw_epochs_[worker_id];
 
-    raw_cvs_[worker_id]->wait(lk, [&] {
-        return stop_.load(std::memory_order_relaxed) || q.try_pop(out);
-    });
+    while (!stop_.load(std::memory_order_relaxed)) {
+        if (q.try_pop(out)) return true;
 
-    return !stop_.load(std::memory_order_relaxed);
+        const std::uint64_t seen = epoch.load(std::memory_order_acquire);
+        if (q.try_pop(out)) return true;
+
+        std::atomic_wait_explicit(&epoch, seen, std::memory_order_acquire);
+    }
+
+    return false;
 }
 
 void KfkpbClient::pushRaw(RawMsg&& m) {
@@ -407,7 +419,9 @@ void KfkpbClient::pushRaw(RawMsg&& m) {
         q.try_push(std::move(m));
     }
 
-    raw_cvs_[worker_id]->notify_one();
+    auto& epoch = *raw_epochs_[worker_id];
+    epoch.fetch_add(1, std::memory_order_release);
+    std::atomic_notify_one(&epoch);
 }
 
 void KfkpbClient::pushEvent(std::size_t worker_id, KfkpbEvent&& ev) {

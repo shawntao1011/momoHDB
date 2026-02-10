@@ -30,11 +30,12 @@ struct KfkpbEvent {
     enum class Kind : std::uint8_t { Data = 0, Error = 1 };
 
     Kind kind{Kind::Data};
-    KfkpbMsgType msg_type{KfkpbMsgType::Unknown};
 
     std::string topic;
     std::string key;
     std::int64_t ingest_ns{0};
+
+    KfkpbMsgType msg_type{KfkpbMsgType::Unknown};
 
     // success: decoded kbytes (for q-thread to wrap as KG)
     std::vector<std::uint8_t> data;
@@ -124,8 +125,7 @@ private:
 
     // queues
     std::vector<std::unique_ptr<queue::SPSCQueue<RawMsg>>> raw_qs_;
-    std::vector<std::unique_ptr<std::mutex>> raw_mus_;
-    std::vector<std::unique_ptr<std::condition_variable>> raw_cvs_;
+    std::vector<std::unique_ptr<std::atomic<std::uint64_t>>> raw_epochs_;
 
     std::vector<std::unique_ptr<queue::SPSCQueue<KfkpbEvent>>> evt_qs_;
     std::atomic<std::size_t> drain_rr_{0};

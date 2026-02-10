@@ -3,6 +3,10 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <vector>
+#include <cstring>
+#include <cstdlib>
+#include <cctype>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -326,7 +330,7 @@ inline JsonLogger::Options default_options_for(std::string_view app_name) {
 // ------------------------------
 // Free functions (nice call sites)
 // ------------------------------
-inline void init(const cfg::LoggerCfg cfg) { JsonLogger::instance().init(cfg); }
+inline void init(const cfg::LoggerCfg& cfg) { JsonLogger::instance().init(cfg); }
 inline void shutdown() { JsonLogger::instance().shutdown(); }
 inline void set_level(Level lv) { JsonLogger::instance().set_level(lv); }
 

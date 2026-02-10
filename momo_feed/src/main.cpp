@@ -24,6 +24,7 @@ static queue::OverflowPolicy to_queue_overflow(cfg::OverflowPolicy p) {
 
 int main (int argc, char *argv[]) {
     std::signal(SIGINT, on_sigint);
+    std::signal(SIGTERM, on_sigint);
 
     if (argc < 2) {
         std::cerr
