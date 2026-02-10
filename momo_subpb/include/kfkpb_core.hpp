@@ -37,7 +37,7 @@ struct KfkpbEvent {
     std::int64_t ingest_ns{0};
 
     // success: decoded kbytes (for q-thread to wrap as KG)
-    std::vector<std::uint8_t> kbytes;
+    std::vector<std::uint8_t> data;
 
     // error: fixed size message
     char err_msg[96]{0};

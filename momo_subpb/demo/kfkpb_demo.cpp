@@ -113,10 +113,10 @@ static void print_event(const KfkpbEvent& ev) {
         std::cout << ", err=" << (ev.err_msg[0] ? ev.err_msg : "(none)");
     }
 
-    std::cout << ", kbytes_length=" << ev.kbytes.size();
+    std::cout << ", kbytes_length=" << ev.data.size();
 
-    if (!ev.kbytes.empty()) {
-        std::cout << ",\nkbytes_hex=" << hex_prefix(ev.kbytes);
+    if (!ev.data.empty()) {
+        std::cout << ",\nkbytes_hex=" << hex_prefix(ev.data);
     }
 
     std::cout << std::endl;

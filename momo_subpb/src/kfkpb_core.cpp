@@ -356,7 +356,7 @@ void KfkpbClient::decodeLoop(std::size_t worker_id) {
                 (const std::uint8_t*)m.key.data(), m.key.size(),
                 m.payload.data(), m.payload.size(),
                 m.ts_ns,
-                out.kbytes,
+                out.data,
                 em, sizeof(em)
             );
         } catch (...) {

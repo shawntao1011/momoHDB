@@ -148,7 +148,7 @@ static K to_q_event(const KfkpbEvent& ev) {
     kK(vals)[4] = kj(ev.ingest_ns);
 
     if (ev.kind == KfkpbEvent::Kind::Data) {
-        kK(vals)[5] = make_kbytes(ev.kbytes);
+        kK(vals)[5] = make_kbytes(ev.data);
         kK(vals)[6] = ktj(-KJ, nj);
     } else {
         kK(vals)[5] = ktj(-KJ, nj);
