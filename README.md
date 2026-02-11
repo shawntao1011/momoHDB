@@ -35,7 +35,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
 # install into a staging directory (no system pollution)
-DESTDIR=$PWD/_stage cmake --install build --prefix /opt/momo-feedhandler
+DESTDIR=$PWD/_stage cmake --install build --prefix /opt/momo_feed
 
 # create release archive
-tar -C _stage -czf momo-feedhandler.tar.gz .
+tar -C _stage -czf momo_feed.tar.gz .

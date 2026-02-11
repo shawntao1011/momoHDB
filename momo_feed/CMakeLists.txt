@@ -25,7 +25,7 @@ target_link_libraries(feedhandler_config PUBLIC yaml-cpp futu_openapi)
 target_link_libraries(feedhandler_sinks  PUBLIC PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
 target_link_libraries(feedhandler_futu_core PUBLIC futu_openapi)
 
-add_executable(futu_feeder
+add_executable(momo_feeder
         ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
         $<TARGET_OBJECTS:feedhandler_config>
         $<TARGET_OBJECTS:feedhandler_runtime>
@@ -33,21 +33,21 @@ add_executable(futu_feeder
         $<TARGET_OBJECTS:feedhandler_futu_core>
 )
 
-target_compile_options(futu_feeder PRIVATE -fno-PIE)
-target_link_options(futu_feeder PRIVATE -no-pie)
+target_compile_options(momo_feeder PRIVATE -fno-PIE)
+target_link_options(momo_feeder PRIVATE -no-pie)
 
-target_link_libraries(futu_feeder PRIVATE momo_common yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
+target_link_libraries(momo_feeder PRIVATE momo_common yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
 
-target_include_directories(futu_feeder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(momo_feeder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # install
 include(GNUInstallDirs)
 set(MOMO_LIBDIR "${CMAKE_INSTALL_LIBDIR}/momo_feedhandler")
 
-install(TARGETS futu_feeder
+install(TARGETS momo_feeder
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-set_target_properties(futu_feeder PROPERTIES
+set_target_properties(momo_feeder PROPERTIES
         BUILD_RPATH "${CMAKE_BINARY_DIR}"
         INSTALL_RPATH "\$ORIGIN/../${MOMO_LIBDIR}"
 )

@@ -22,6 +22,12 @@ static std::int64_t ns_to_ms(std::int64_t ts_ns) {
     return ts_ns / kNsPerMs;
 }
 
+static std::int64_t ms_to_ns(std::int64_t ts_ms) {
+    if (ts_ms <= 0) return 0;
+    constexpr std::int64_t kNsPerMs = 1'000'000;
+    return ts_ms * kNsPerMs;
+}
+
 static void set_err(char* dst, std::size_t cap, const char* s) {
     if (!dst || cap == 0) return;
     if (!s) { dst[0] = '\0'; return; }
@@ -294,7 +300,9 @@ void KfkpbClient::consumerLoop() {
         if (msg->key && msg->key_len > 0) {
             rm->key.assign((const char*)msg->key, (std::size_t)msg->key_len);
         }
-        rm->ts_ns = rd_kafka_message_timestamp(msg, nullptr);
+        rd_kafka_timestamp_type_t ts_type = RD_KAFKA_TIMESTAMP_NOT_AVAILABLE;
+        const std::int64_t ts_ms = rd_kafka_message_timestamp(msg, &ts_type);
+        rm->ts_ns = (ts_type == RD_KAFKA_TIMESTAMP_NOT_AVAILABLE) ? 0 : ms_to_ns(ts_ms);
 
         rm->payload.resize((std::size_t)msg->len);
         if (msg->len > 0) std::memcpy(rm->payload.data(), msg->payload, (std::size_t)msg->len);
