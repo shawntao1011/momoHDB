@@ -1,6 +1,6 @@
 #pragma once
 #include "runtime/Dispatcher.hpp"
-#include "../../../momo_common/include/JsonLogger.hpp"
+#include "JsonLogger.hpp"
 
 class DemoLogSink final : public ISink {
 public:

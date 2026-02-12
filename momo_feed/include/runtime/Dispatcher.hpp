@@ -6,8 +6,8 @@
 #include <thread>
 #include <vector>
 
-#include "../../../momo_common/include/Envelope.hpp"
-#include "../../../momo_common/include/SPSCQueue.hpp"
+#include "Envelope.hpp"
+#include "SPSCQueue.hpp"
 
 class ISink {
 public:

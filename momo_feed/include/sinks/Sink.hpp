@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../momo_common/include/Envelope.hpp"
+#include "Envelope.hpp"
 
 struct Sink {
     void* ctx{};

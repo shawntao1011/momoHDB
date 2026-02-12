@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "../../../momo_common/include/JsonLogger.hpp"
+#include "JsonLogger.hpp"
 
 FutuQuoteSession::FutuQuoteSession(SessionCallbacks cbs) : cbs_(cbs) {
     qot_ = new Futu::FTAPI_Qot();
