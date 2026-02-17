@@ -34,6 +34,7 @@ class SubscriptionManager {
     void bind_session(FutuQuoteSession* s) { session_ = s; };
     
     void on_connected(Futu::i64_t err, const char* desc);
+    void on_disconnected(Futu::i64_t err);
     void on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp);
     
     void on_push_basicqot(const Qot_UpdateBasicQot::Response &stRsp);
