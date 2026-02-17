@@ -91,6 +91,9 @@ int main (int argc, char *argv[]) {
     cbs.on_connected = [](void* ctx, int64_t e, const char* d){
         static_cast<SubscriptionManager*>(ctx)->on_connected(e, d);
     };
+    cbs.on_disconnected = [](void* ctx, int64_t e){
+        static_cast<SubscriptionManager*>(ctx)->on_disconnected(e);
+    };
     cbs.on_sub_reply  = [](void* ctx, int32_t s, const Qot_Sub::Response& r){
         static_cast<SubscriptionManager*>(ctx)->on_sub_reply(s, r);
     };

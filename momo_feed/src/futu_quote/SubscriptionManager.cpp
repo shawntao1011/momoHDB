@@ -52,11 +52,18 @@ SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader
 
 void SubscriptionManager::on_connected(Futu::i64_t err, const char *desc)
 {
-    logger::info("subman", "connected",
+    logger::warn("subman", "connected",
                  {logger::num("err", err), logger::field("desc", desc ? desc : "")});
     connected_.store(err == 0);
     if (err == 0) force_resubscribe_.store(true, std::memory_order_release);
 }
+
+void SubscriptionManager::on_disconnected(Futu::i64_t err)
+{
+    connected_.store(false, std::memory_order_release);
+    logger::warn("subman", "disconnected", {logger::num("err", err)});
+}
+
 void SubscriptionManager::on_sub_reply(Futu::u32_t nSerialNo, const Qot_Sub::Response &stRsp)
 {
     logger::info("subman", "sub_reply",
@@ -169,6 +176,9 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
     batch.reserve(1024);
 
     while (!stop.load(std::memory_order_relaxed)) {
+        if (session_) {
+            session_->ensure_connected();
+        }
 
         // --------- subscription control plane ----------
         const bool connected = connected_.load(std::memory_order_acquire) && session_;

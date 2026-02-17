@@ -5,8 +5,10 @@
 #include <Proto/Qot_Sub.pb.h>
 #include <Proto/Qot_UpdateOrderBook.pb.h>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <expected>
+#include <string>
 
 class SubscriptionManager;
 
@@ -37,6 +39,7 @@ public:
 
 	std::expected<void, std::string> start(const char *szIP, uint16_t nPort);
 	void stop();
+	void ensure_connected();
     
     bool connected() const { return connected_.load(); };
     Futu::u32_t sub(const Qot_Sub::Request& rsp);
@@ -46,6 +49,12 @@ private:
     SessionCallbacks cbs_;
 
     std::atomic<bool> connected_{false};
+	std::string ip_;
+	uint16_t port_{0};
+	std::chrono::milliseconds reconnect_interval_{2000};
+	std::atomic<int64_t> next_reconnect_at_ns_{0};
+
+	static int64_t steady_now_ns();
 
 protected:
 	virtual void OnInitConnect(Futu::FTAPI_Conn* pConn, Futu::i64_t nErrCode, const char* strDesc);
