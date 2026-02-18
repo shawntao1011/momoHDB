@@ -11,8 +11,8 @@
 
 #include "SubscriptionTools.hpp"
 #include "Subscription.hpp"
-#include "Envelope.hpp"
-#include "SPSCQueue.hpp"
+#include "common/Envelope.hpp"
+#include "common/SPSCQueue.hpp"
 #include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
@@ -22,9 +22,8 @@ class SubscriptionManager {
     struct Options {
         std::string subscription_path;
         std::chrono::milliseconds refresh_interval{5000};
-        std::size_t capacity{8192};
-        queue::OverflowPolicy overflow{queue::OverflowPolicy::DropOldest};
-        bool first_push{false};
+        std::size_t capacity{32768};
+        queue::OverflowPolicy overflow{queue::OverflowPolicy::Block};
     };
 
     SubscriptionManager(Sink sink,

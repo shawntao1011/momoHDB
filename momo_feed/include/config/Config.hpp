@@ -4,8 +4,8 @@
 #include <variant>
 #include <vector>
 
-#include "config/LoggerConfig.hpp"
-#include "config/OverflowPolicy.hpp"
+#include "LoggerConfig.hpp"
+#include "OverflowPolicy.hpp"
 
 namespace cfg {
 // ---------- session ----------
@@ -23,8 +23,7 @@ struct SubscriptionCfg {
 struct SubscriptionManagerCfg {
     int refresh_ms{5000};
     std::size_t capacity{1024};
-    cfg::OverflowPolicy overflow{cfg::OverflowPolicy::DropOldest};
-    bool first_push{false};
+    cfg::OverflowPolicy overflow{cfg::OverflowPolicy::Block};
 };
 
 // ---------- sinks ----------

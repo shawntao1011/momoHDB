@@ -166,16 +166,11 @@ cfg::ConfigLoader::load(const std::string& path) {
         cfg.submanager.capacity = *capacity;
 
         auto overflow_value = optional_scalar_as<std::string>(
-            n["overflow"], path, "subscriptionmanager.overflow", "drop_oldest");
+            n["overflow"], path, "subscriptionmanager.overflow", "block");
         if (!overflow_value) return std::unexpected(overflow_value.error());
         auto overflow = parse_overflow_policy(*overflow_value, path, "subscriptionmanager.overflow");
         if (!overflow) return std::unexpected(overflow.error());
         cfg.submanager.overflow = *overflow;
-
-        auto first_push = optional_scalar_as<bool>(
-            n["first_push"], path, "subscriptionmanager.first_push", cfg.submanager.first_push);
-        if (!first_push) return std::unexpected(first_push.error());
-        cfg.submanager.first_push = *first_push;
     }
 
     // -------- downstreams --------

@@ -1,4 +1,4 @@
-#include "../include/decoders.hpp"
+#include "decoders.hpp"
 #include "parse_helpers.hpp"
 #include "schema.hpp"
 #include "qipc.hpp"

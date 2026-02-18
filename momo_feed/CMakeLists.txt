@@ -36,7 +36,7 @@ add_executable(momo_feeder
 target_compile_options(momo_feeder PRIVATE -fno-PIE)
 target_link_options(momo_feeder PRIVATE -no-pie)
 
-target_link_libraries(momo_feeder PRIVATE momo_common yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
+target_link_libraries(momo_feeder PRIVATE yaml-cpp fmt futu_openapi PkgConfig::RDKAFKACPP PkgConfig::RDKAFKA)
 
 target_include_directories(momo_feeder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

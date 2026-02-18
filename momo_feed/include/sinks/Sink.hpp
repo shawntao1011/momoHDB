@@ -1,5 +1,5 @@
 #pragma once
-#include "Envelope.hpp"
+#include "common/Envelope.hpp"
 
 struct Sink {
     void* ctx{};

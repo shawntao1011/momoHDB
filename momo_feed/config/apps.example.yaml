@@ -19,8 +19,7 @@ subscriptions:
 subscriptionmanager:
   capacity: 8192
   refresh_ms: 5000
-  overflow: "drop_oldest"
-  first_push: true
+  overflow: "block"
 
 downstreams:
   - name: "redpanda-example"

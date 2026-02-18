@@ -6,7 +6,7 @@
 
 #include <librdkafka/rdkafka.h>
 
-#include "JsonLogger.hpp"
+#include "common/JsonLogger.hpp"
 
 namespace {
 
