@@ -6,5 +6,5 @@ struct Envelope {
     std::string topic;      // futu.quote.raw
     std::string key;        // symbol
     std::string payload;    // bytes
-    std::int64_t ts_ns{0};  // ingest time
+    int64_t ingest_time_ms; // ingest time
 };

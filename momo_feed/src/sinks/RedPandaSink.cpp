@@ -75,7 +75,7 @@ RedPandaSink::~RedPandaSink() {
 void RedPandaSink::submit(std::shared_ptr<const Envelope> e) {
     if (!producer_ || !e) return;
 
-    const std::int64_t timestamp_ms = to_timestamp_ms(e->ts_ns);
+    const std::int64_t timestamp_ms = e->ingest_time_ms;
     const auto err = rd_kafka_producev(
         producer_,
         RD_KAFKA_V_TOPIC(e->topic.c_str()),

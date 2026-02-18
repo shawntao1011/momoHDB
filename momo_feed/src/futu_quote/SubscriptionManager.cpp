@@ -43,6 +43,15 @@ static std::string make_key(int market, const std::string& code) {
     return market_prefix(market) + "." + code;
 }
 
+static inline std::string warm_key(const std::string& topic, const std::string& key) {
+    std::string k;
+    k.reserve(topic.size() + 1 + key.size());
+    k.append(topic);
+    k.push_back('|');
+    k.append(key);
+    return k;
+}
+
 SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
     , inbox_(next_pow2(opts.capacity))
@@ -85,14 +94,13 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
         Qot_UpdateBasicQot::Response single_rsp;
         single_rsp.set_rettype(stRsp.rettype());
         single_rsp.set_retmsg(stRsp.retmsg());
-        single_rsp.mutable_s2c()->CopyFrom(stRsp.s2c());
-        single_rsp.mutable_s2c()->clear_basicqotlist();
+
         single_rsp.mutable_s2c()->add_basicqotlist()->CopyFrom(item);
 
         Envelope e;
         e.topic = "futu.basicqot.pb";
         e.key = make_key(sec.market(), sec.code());
-        e.ts_ns = now_ns();
+        e.ingest_time_ms = now_ms();
         e.payload.resize(static_cast<size_t>(single_rsp.ByteSizeLong()));
         if (!single_rsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
             continue;
@@ -106,7 +114,7 @@ void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response 
     e.topic = "futu.orderbook.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -120,7 +128,7 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
     e.topic = "futu.ticker.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -134,7 +142,7 @@ void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
     e.topic = "futu.kl1min.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -148,7 +156,7 @@ void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
     e.topic = "futu.rt.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -162,7 +170,7 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
     e.topic = "futu.broker.pb";
     const auto& sec = stRsp.s2c().security();
     e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -174,6 +182,49 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
 void SubscriptionManager::run(std::atomic<bool> &stop) {
     std::vector<Envelope> batch;
     batch.reserve(1024);
+
+    // Per (topic|key) warmup slots.
+    std::unordered_map<std::string, WarmupSlot> warmups;
+    constexpr auto WARMUP = std::chrono::milliseconds(1000);
+
+    auto open_warmup_all_topics = [&](const std::string& key) {
+        const auto until = std::chrono::steady_clock::now() + WARMUP;
+        // We open warmup for all topics we produce.
+        static constexpr const char* TOPICS[] = {
+            "futu.basicqot.pb",
+            "futu.orderbook.pb",
+            "futu.ticker.pb",
+            "futu.kl1min.pb",
+            "futu.rt.pb",
+            "futu.broker.pb",
+        };
+        for (auto* t : TOPICS) {
+            auto& slot = warmups[warm_key(t, key)];
+            slot.until = until;
+            slot.active = true;
+            slot.buf.clear();
+            slot.buf.reserve(64);
+        }
+    };
+
+    auto flush_slot = [&](WarmupSlot& slot) {
+        if (!sink_.submit) {
+            slot.buf.clear();
+            slot.active = false;
+            return;
+        }
+        if (slot.buf.size() <= 1) {
+            // snapshot-only warmup: drop
+            slot.buf.clear();
+            slot.active = false;
+            return;
+        }
+        for (auto& e : slot.buf) {
+            sink_.submit(sink_.ctx, std::move(e));
+        }
+        slot.buf.clear();
+        slot.active = false;
+    };
 
     while (!stop.load(std::memory_order_relaxed)) {
         if (session_) {
@@ -208,6 +259,16 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
             // 3) If we have pending, apply it (diff or full)
             if (has_pending_) {
                 apply_pending();
+
+                // After (re)apply subscriptions, open a short warmup window for
+                // all currently subscribed securities. This prevents a single
+                // "cached snapshot" push after restart from polluting downstream.
+                if (has_current_) {
+                    for (const auto& [id, mask] : current_state_) {
+                        (void)mask;
+                        open_warmup_all_topics(make_key(static_cast<int>(id.market), id.code));
+                    }
+                }
             }
 
             // 4) Only clear force after we've at least attempted a connected-cycle load.
@@ -230,7 +291,18 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
 
         if (sink_.submit) {
+            const auto now = std::chrono::steady_clock::now();
             for (auto& e : batch) {
+                auto it = warmups.find(warm_key(e.topic, e.key));
+                if (it != warmups.end() && it->second.active) {
+                    auto& slot = it->second;
+                    if (now < slot.until) {
+                        slot.buf.emplace_back(std::move(e));
+                        continue;
+                    }
+                    // window ended: flush once, then fallthrough to forward current msg
+                    flush_slot(slot);
+                }
                 sink_.submit(sink_.ctx, std::move(e));
             }
         }
@@ -442,9 +514,9 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
     return sn;
 }
 
-int64_t SubscriptionManager::now_ns() {
+int64_t SubscriptionManager::now_ms() {
     using namespace std::chrono;
-    return duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 bool SubscriptionManager::enqueue(Envelope&& e) {

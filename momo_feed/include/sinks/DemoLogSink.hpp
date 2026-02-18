@@ -12,7 +12,7 @@ public:
                       logger::field("topic", e->topic),
                       logger::field("key", e->key),
                       logger::num("size", e->payload.size()),
-                      logger::num("ts_ns", e->ts_ns)});
+                      logger::num("ingest_time_ns", e->ingest_time_ms)});
     }
     void flush(int timeout_ms) override
     {}
