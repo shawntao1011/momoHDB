@@ -23,7 +23,7 @@ struct SubscriptionCfg {
 struct WarmupCfg {
     int window_ms{1000};
     std::size_t enable_threshold{2};
-    std::vector<std::string> bypass_topics;
+    std::vector<int> bypass_kinds;
 };
 
 struct SubscriptionManagerCfg {

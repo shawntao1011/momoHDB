@@ -4,19 +4,21 @@
 #include <unordered_set>
 #include <vector>
 
+#include "common/Envelope.hpp"
+
 namespace cfg {
 
     enum class WarmupMode { Bypass, Eligible };
 
     // Configuration-driven warmup policy.
-    // - Bypass: do not apply warmup gate for this topic.
-    // - Eligible: apply warmup gate for this topic.
+    // - Bypass: do not apply warmup gate for this kind.
+    // - Eligible: apply warmup gate for this kind.
     class WarmupPolicy {
     public:
         int window_ms{1000};
         std::size_t enable_threshold{2};
 
-        // Topics that should bypass warmup gate.
+        // Message kinds that should bypass warmup gate.
         std::unordered_set<int> bypass_kinds;
 
         WarmupPolicy() = default;
