@@ -88,7 +88,7 @@ int main (int argc, char *argv[]) {
                 wp.window_ms = cfg.submanager.warmup.window_ms;
                 wp.enable_threshold = cfg.submanager.warmup.enable_threshold;
                 // default: bypass list from config (can be empty)
-                for (int k : cfg.submanager.warmup.bypass_kinds) {
+                for (auto k : cfg.submanager.warmup.bypass_kinds) {
                     wp.bypass_kinds.insert(k);
                 }
                 return wp;

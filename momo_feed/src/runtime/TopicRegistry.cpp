@@ -27,14 +27,14 @@ namespace runtime {
         }
     }
 
-    MsgKind msgkind_for_topic(std::string_view tp) noexcept {
-        if (tp == "futu.basicqot.pb") return MsgKind::BasicQuote;
-        if (tp == "futu.orderbook.pb") return MsgKind::OrderBook;
-        if (tp == "futu.ticker.pb") return MsgKind::Ticker;
-        if (tp == "futu.kl1min.pb") return MsgKind::KL1Min;
-        if (tp == "futu.rt.pb") return MsgKind::RT;
-        if (tp == "futu.broker.pb") return MsgKind::Broker;
-        return MsgKind::BasicQuote;
+    MsgKind msgkind_for_yamlcfg(std::string_view tp) noexcept {
+        if (tp == "BasicQot") return MsgKind::BasicQuote;
+        if (tp == "OrderBook") return MsgKind::OrderBook;
+        if (tp == "Ticker") return MsgKind::Ticker;
+        if (tp == "KL1Min") return MsgKind::KL1Min;
+        if (tp == "RT") return MsgKind::RT;
+        if (tp == "Broker") return MsgKind::Broker;
+        return MsgKind::Unknown;
     }
 
     MsgKind msgkind_for_subtype(Qot_Common::SubType st) noexcept {

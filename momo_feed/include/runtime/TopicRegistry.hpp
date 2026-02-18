@@ -10,6 +10,6 @@ namespace runtime {
     std::string_view topic_for_msgkind(MsgKind kind) noexcept;
     std::string_view topic_for_subtype(Qot_Common::SubType st) noexcept;
 
-    MsgKind msgkind_for_topic(std::string_view tp) noexcept;
+    MsgKind msgkind_for_yamlcfg(std::string_view tp) noexcept;
     MsgKind msgkind_for_subtype(Qot_Common::SubType st) noexcept;
 } // namespace runtime

@@ -221,23 +221,15 @@ cfg::ConfigLoader::load(const std::string& path) {
             }
             cfg.submanager.warmup.enable_threshold = *enable_th;
 
-            auto bypass = optional_seq_as<std::string>(
-                wn["bypass_subtypes"], path, "subscriptionmanager.warmup.bypass_subtypes");
-            if (!bypass) return std::unexpected(bypass.error());
-
-            if (bypass->empty()) {
-                auto bypass_legacy = optional_seq_as<std::string>(
-                    wn["bypass_topics"], path, "subscriptionmanager.warmup.bypass_topics");
-                if (!bypass_legacy) return std::unexpected(bypass_legacy.error());
-                bypass = std::move(*bypass_legacy);
-            }
-
+            auto bypass_kinds = optional_seq_as<std::string>(
+                wn["bypass_kinds"], path, "subscriptionmanager.warmup.bypass_kinds");
+            if (!bypass_kinds) return std::unexpected(bypass_kinds.error());
             cfg.submanager.warmup.bypass_kinds.clear();
-            cfg.submanager.warmup.bypass_kinds.reserve(bypass->size());
-            for (std::size_t i = 0; i < bypass->size(); ++i) {
-                const auto& token = (*bypass)[i];
-                auto kind = runtime::msgkind_for_topic(token);
-                cfg.submanager.warmup.bypass_kinds.push_back(static_cast<int>(kind));
+            cfg.submanager.warmup.bypass_kinds.reserve(bypass_kinds->size());
+            for (std::size_t i = 0; i < bypass_kinds->size(); ++i) {
+                const auto& token = (*bypass_kinds)[i];
+                auto kind = runtime::msgkind_for_yamlcfg(token);
+                cfg.submanager.warmup.bypass_kinds.push_back(kind);
             }
 
         }

@@ -3,13 +3,14 @@
 #include <cstdint>
 #include <vector>
 
-enum class MsgKind : uint16_t {
-    BasicQuote,
-    OrderBook,
-    Ticker,
-    KL1Min,
-    RT,
-    Broker
+enum class MsgKind : int {
+    Unknown    = -1,
+    BasicQuote = 0,
+    OrderBook  = 1,
+    Ticker     = 2,
+    KL1Min     = 3,
+    RT         = 4,
+    Broker     = 5,
 };
 
 struct Envelope {

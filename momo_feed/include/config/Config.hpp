@@ -6,6 +6,7 @@
 
 #include "LoggerConfig.hpp"
 #include "OverflowPolicy.hpp"
+#include "common/Envelope.hpp"
 
 namespace cfg {
 // ---------- session ----------
@@ -23,7 +24,7 @@ struct SubscriptionCfg {
 struct WarmupCfg {
     int window_ms{1000};
     std::size_t enable_threshold{2};
-    std::vector<int> bypass_kinds;
+    std::vector<MsgKind> bypass_kinds;
 };
 
 struct SubscriptionManagerCfg {

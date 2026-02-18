@@ -18,14 +18,15 @@ namespace cfg {
         int window_ms{1000};
         std::size_t enable_threshold{2};
 
-        // Message kinds that should bypass warmup gate.
-        std::unordered_set<int> bypass_kinds;
+        struct MsgKindHash {
+            std::size_t operator()(MsgKind k) const noexcept {
+                return static_cast<std::size_t>(static_cast<int>(k));
+            }
+        };
+        std::unordered_set<MsgKind, MsgKindHash> bypass_kinds;
 
-        WarmupPolicy() = default;
-
-        WarmupMode mode(MsgKind k) const {
-            return bypass_kinds.count(static_cast<int>(k)) ? WarmupMode::Bypass
-                                                           : WarmupMode::Eligible;
+        WarmupMode mode(MsgKind k) const noexcept {
+            return bypass_kinds.contains(k) ? WarmupMode::Bypass : WarmupMode::Eligible;
         }
     };
 
