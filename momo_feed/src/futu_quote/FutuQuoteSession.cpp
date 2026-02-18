@@ -76,6 +76,18 @@ void FutuQuoteSession::OnInitConnect(Futu::FTAPI_Conn *pConn,
     connected_.store(nErrCode == 0);
     if (nErrCode != 0) {
         next_reconnect_at_ns_.store(steady_now_ns(), std::memory_order_release);
+        logger::warn("session", "init_connect_failed",
+                     {logger::num("err", nErrCode),
+                      logger::field("desc", strDesc ? strDesc : ""),
+                      logger::field("ip", ip_),
+                      logger::num("port", port_),
+                      logger::num("reconnect_interval_ms", reconnect_interval_.count())});
+    } else {
+        logger::info("session", "init_connect_ok",
+                     {logger::num("err", nErrCode),
+                      logger::field("desc", strDesc ? strDesc : ""),
+                      logger::field("ip", ip_),
+                      logger::num("port", port_)});
     }
     if (cbs_.on_connected) {
         cbs_.on_connected(cbs_.ctx, nErrCode, strDesc);
@@ -86,6 +98,11 @@ void FutuQuoteSession::OnDisConnect(Futu::FTAPI_Conn *pConn,
                                     Futu::i64_t nErrCode) {
     connected_.store(false);
     next_reconnect_at_ns_.store(steady_now_ns(), std::memory_order_release);
+    logger::warn("session", "disconnected",
+                 {logger::num("err", nErrCode),
+                  logger::field("ip", ip_),
+                  logger::num("port", port_),
+                  logger::num("reconnect_interval_ms", reconnect_interval_.count())});
     if (cbs_.on_disconnected) {
         cbs_.on_disconnected(cbs_.ctx, nErrCode);
     }

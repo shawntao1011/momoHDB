@@ -13,9 +13,11 @@
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
 #include "common/SPSCQueue.hpp"
+#include "config/WarmupPolicy.hpp"
 #include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
+using SteadyTP = std::chrono::steady_clock::time_point;
 
 class SubscriptionManager {
   public:
@@ -24,6 +26,32 @@ class SubscriptionManager {
         std::chrono::milliseconds refresh_interval{5000};
         std::size_t capacity{32768};
         queue::OverflowPolicy overflow{queue::OverflowPolicy::Block};
+        cfg::WarmupPolicy warmup; // config-driven warmup policy
+    };
+
+    // -----------------------------------------------------------------------------
+    // Warmup gate (restart-safe-by-behavior, no persistent state)
+    //
+    // Problem we address:
+    // - After (re)subscribe, OpenD often immediately pushes a snapshot which is
+    //   frequently the "last" cached value (duplicate) even outside trading hours.
+    // - We don't want that single snapshot to look like "new data" during deploy.
+    //
+    // Strategy (per topic+key):
+    // - After we (re)apply subscriptions, open a short warmup window (default 1s).
+    // - During warmup, buffer all messages instead of forwarding.
+    // - When window ends:
+    //     * if buffered count == 1: DROP it (snapshot-only, typical deploy/restart)
+    //     * if buffered count >= 2: FORWARD ALL buffered messages (no data loss)
+    // - After warmup ends, forward messages normally.
+    //
+    // This is intentionally lightweight: no protobuf decode, no heavy hashing,
+    // no RocksDB, no extra processes.
+    // -----------------------------------------------------------------------------
+    struct WarmupSlot {
+        SteadyTP until{};
+        bool active{false};
+        std::vector<Envelope> buf; // keep all during warmup to avoid data loss
     };
 
     SubscriptionManager(Sink sink,
@@ -63,7 +91,7 @@ private:
     Futu::u32_t subscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs);
     Futu::u32_t unsubscribe_api(const SecurityId& id, const std::vector<Qot_Common::SubType>& subs);
 
-    static int64_t now_ns();
+    static int64_t now_ms();
     bool enqueue(Envelope&& e);
 
 private:

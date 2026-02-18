@@ -7,6 +7,7 @@
 #include <librdkafka/rdkafka.h>
 
 #include "common/JsonLogger.hpp"
+#include "runtime/TopicRegistry.hpp"
 
 namespace {
 
@@ -75,14 +76,16 @@ RedPandaSink::~RedPandaSink() {
 void RedPandaSink::submit(std::shared_ptr<const Envelope> e) {
     if (!producer_ || !e) return;
 
-    const std::int64_t timestamp_ms = to_timestamp_ms(e->ts_ns);
+    const std::int64_t timestamp_ms = e->ingest_time_ms;
+    auto sv = runtime::topic_for_msgkind(e->kind);
     const auto err = rd_kafka_producev(
         producer_,
-        RD_KAFKA_V_TOPIC(e->topic.c_str()),
+        RD_KAFKA_V_TOPIC(sv.data()),
         RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
         RD_KAFKA_V_TIMESTAMP(timestamp_ms),
-        RD_KAFKA_V_KEY(e->key.data(), e->key.size()),
-        RD_KAFKA_V_VALUE(const_cast<char*>(e->payload.data()), e->payload.size()),
+        RD_KAFKA_V_KEY(e->symbol.data(), e->symbol.size()),
+        RD_KAFKA_V_VALUE(const_cast<void*>(reinterpret_cast<const void*>(e->payload.data())),
+                 e->payload.size()),
         RD_KAFKA_V_END);
 
     if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
@@ -91,8 +94,8 @@ void RedPandaSink::submit(std::shared_ptr<const Envelope> e) {
         }
         logger::warn("sink", "redpanda_produce_failed",
                      {logger::field("name", name_),
-                      logger::field("topic", e->topic),
-                      logger::field("key", e->key),
+                      logger::field("topic", runtime::topic_for_msgkind(e->kind)),
+                      logger::field("key", e->symbol),
                       logger::field("error", rd_kafka_err2str(err))});
         return;
     }

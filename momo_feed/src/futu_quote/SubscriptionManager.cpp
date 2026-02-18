@@ -7,9 +7,11 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
 #include "common/JsonLogger.hpp"
+#include "runtime/TopicRegistry.hpp"
 
 static std::size_t next_pow2(std::size_t v) {
     if (v < 2) return 2;
@@ -42,6 +44,130 @@ static std::string market_prefix(int market) {
 static std::string make_key(int market, const std::string& code) {
     return market_prefix(market) + "." + code;
 }
+
+static inline std::string warm_key_kind(MsgKind kind, const std::string& sym) {
+    std::string k;
+    auto kid = std::to_string(static_cast<int>(kind));
+    k.reserve(kid.size() + 1 + sym.size());
+    k.append(kid);
+    k.push_back('|');
+    k.append(sym);
+    return k;
+}
+
+namespace {
+
+    using WarmupMap = std::unordered_map<std::string, SubscriptionManager::WarmupSlot>; // "kind|sym"
+    using KindEnableMap = std::unordered_map<int, bool>; // kind(int) -> enabled
+
+    static cfg::WarmupMode resolve_warmup_mode(const cfg::WarmupPolicy& warmup, MsgKind kind) {
+        return warmup.mode(kind);
+    }
+
+    static void open_warmup_for_mask(
+        WarmupMap& warmups,
+        KindEnableMap& enabled,
+        const cfg::WarmupPolicy& policy,
+        std::chrono::milliseconds window,
+        const std::string& sym,
+        SubMask mask)
+    {
+        if (window.count() == 0) return;
+
+        const auto until = std::chrono::steady_clock::now() + window;
+        std::vector<Qot_Common::SubType> subs;
+        mask_to_vec(mask, subs);
+
+        for (auto st : subs) {
+            auto kind = runtime::msgkind_for_subtype(st);
+            if (policy.mode(kind) == cfg::WarmupMode::Bypass) continue;
+
+            auto& slot = warmups[warm_key_kind(kind, sym)];
+            slot.until = until;
+            slot.active = true;
+            slot.buf.clear();
+            slot.buf.reserve(64);
+
+            enabled[static_cast<int>(kind)] = false;
+
+            logger::info("subman", "init_push_warmup_opened",
+                { logger::field("kind", std::to_string(static_cast<int>(kind))),
+                  logger::field("topic", runtime::topic_for_msgkind(kind)),
+                  logger::field("key", sym),
+                  logger::num("warmup_ms", window.count())});
+        }
+    }
+
+static void flush_slot(
+    Sink sink,
+    KindEnableMap& kind_enabled,
+    SubscriptionManager::WarmupSlot& slot,
+    MsgKind kind,
+    std::string_view key) {
+    if (!sink.submit) {
+        slot.buf.clear();
+        slot.active = false;
+        return;
+    }
+
+    const bool enabled = kind_enabled[static_cast<int>(kind)];
+    if (!enabled && slot.buf.size() <= 1) {
+        const auto buffered = slot.buf.size();
+        // snapshot-only / no-push warmup: drop and raise warning for visibility.
+        logger::warn("subman", "init_push_drop",
+            {logger::field("topic", runtime::topic_for_msgkind(kind)),
+                logger::field("key", key),
+                logger::b("no_msg", buffered == 0),
+                logger::b("single_only", buffered == 1)});
+        slot.buf.clear();
+        slot.active = false;
+        return;
+    }
+
+    logger::info("subman", "init_push_flush",
+        {logger::field("topic", runtime::topic_for_msgkind(kind)),
+          logger::field("key", key),
+          logger::num("buffered", slot.buf.size())});
+    for (auto& e : slot.buf) {
+        sink.submit(sink.ctx, std::move(e));
+    }
+    slot.buf.clear();
+    slot.active = false;
+}
+
+static void sweep_expired_warmups(
+    WarmupMap& warmups,
+    KindEnableMap& kind_enabled,
+    Sink sink,
+    const std::chrono::milliseconds window) {
+    if (warmups.empty() || window.count() == 0) return;
+
+    const auto now = std::chrono::steady_clock::now();
+    for (auto it = warmups.begin(); it != warmups.end(); ) {
+        auto& slot = it->second;
+        if (slot.active && now >= slot.until) {
+            const auto sep = it->first.find('|');
+            const std::string_view kind_sv = (sep == std::string::npos)
+                ? std::string_view{}
+                : std::string_view(it->first).substr(0, sep);
+            const std::string_view key = (sep == std::string::npos)
+                ? std::string_view(it->first)
+                : std::string_view(it->first).substr(sep + 1);
+
+            MsgKind kind = MsgKind::BasicQuote;
+            if (!kind_sv.empty()) {
+                kind = static_cast<MsgKind>(std::stoi(std::string(kind_sv)));
+            }
+
+            flush_slot(sink, kind_enabled, slot, kind, key);
+            it = warmups.erase(it);
+            continue;
+        }
+        ++it;
+    }
+}
+
+} // namespace
 
 SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
@@ -85,14 +211,13 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
         Qot_UpdateBasicQot::Response single_rsp;
         single_rsp.set_rettype(stRsp.rettype());
         single_rsp.set_retmsg(stRsp.retmsg());
-        single_rsp.mutable_s2c()->CopyFrom(stRsp.s2c());
-        single_rsp.mutable_s2c()->clear_basicqotlist();
+
         single_rsp.mutable_s2c()->add_basicqotlist()->CopyFrom(item);
 
         Envelope e;
-        e.topic = "futu.basicqot.pb";
-        e.key = make_key(sec.market(), sec.code());
-        e.ts_ns = now_ns();
+        e.kind = MsgKind::BasicQuote;
+        e.symbol = make_key(sec.market(), sec.code());
+        e.ingest_time_ms = now_ms();
         e.payload.resize(static_cast<size_t>(single_rsp.ByteSizeLong()));
         if (!single_rsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
             continue;
@@ -103,10 +228,10 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
 void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.orderbook.pb";
+    e.kind = MsgKind::OrderBook;
     const auto& sec = stRsp.s2c().security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.symbol = make_key(sec.market(), sec.code());
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -117,10 +242,10 @@ void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response 
 void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.ticker.pb";
+    e.kind = MsgKind::Ticker;
     const auto& sec = stRsp.s2c().security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.symbol = make_key(sec.market(), sec.code());
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -131,10 +256,10 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
 void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.kl1min.pb";
+    e.kind = MsgKind::KL1Min;
     const auto& sec = stRsp.s2c().security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.symbol = make_key(sec.market(), sec.code());
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -145,10 +270,10 @@ void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
 void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.rt.pb";
+    e.kind = MsgKind::RT;
     const auto& sec = stRsp.s2c().security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.symbol = make_key(sec.market(), sec.code());
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -159,10 +284,10 @@ void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
 void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp)
 {
     Envelope e;
-    e.topic = "futu.broker.pb";
+    e.kind = MsgKind::Broker;
     const auto& sec = stRsp.s2c().security();
-    e.key = make_key(sec.market(), sec.code());
-    e.ts_ns = now_ns();
+    e.symbol = make_key(sec.market(), sec.code());
+    e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
         return;
@@ -174,6 +299,10 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
 void SubscriptionManager::run(std::atomic<bool> &stop) {
     std::vector<Envelope> batch;
     batch.reserve(1024);
+
+    WarmupMap warmups;
+    KindEnableMap kind_enabled;
+    const auto warmup_window = std::chrono::milliseconds(opts_.warmup.window_ms);
 
     while (!stop.load(std::memory_order_relaxed)) {
         if (session_) {
@@ -208,6 +337,21 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
             // 3) If we have pending, apply it (diff or full)
             if (has_pending_) {
                 apply_pending();
+
+                // After (re)apply subscriptions, open a short warmup window for
+                // all currently subscribed securities. This prevents a single
+                // "cached snapshot" push after restart from polluting downstream.
+                if (has_current_) {
+                    for (const auto& [id, mask] : current_state_) {
+                        open_warmup_for_mask(
+                            warmups,
+                            kind_enabled,
+                            opts_.warmup,
+                            warmup_window,
+                            make_key(static_cast<int>(id.market), id.code),
+                            mask);
+                    }
+                }
             }
 
             // 4) Only clear force after we've at least attempted a connected-cycle load.
@@ -221,6 +365,8 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
 
         // --------- data plane (push -> sink) ----------
+        sweep_expired_warmups(warmups, kind_enabled, sink_, warmup_window);
+
         batch.clear();
         auto n = inbox_.pop_many(batch, 1024);
 
@@ -230,7 +376,42 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
 
         if (sink_.submit) {
+
+            const auto now = std::chrono::steady_clock::now();
             for (auto& e : batch) {
+                // Policy: bypass topics never enter warmup gate.
+                if (resolve_warmup_mode(opts_.warmup, e.kind) == cfg::WarmupMode::Bypass
+                    || warmup_window.count() == 0)
+                {
+                    sink_.submit(sink_.ctx, std::move(e));
+                    continue;
+                }
+
+                const auto wk = warm_key_kind(e.kind, e.symbol);
+                auto it = warmups.find(wk);
+
+                if (it != warmups.end() && it->second.active) {
+                    auto& slot = it->second;
+                    if (now < slot.until) {
+                        slot.buf.emplace_back(std::move(e));
+
+                        // Topic-level enable: once any key has >= enable_threshold messages buffered,
+                        // mark this topic enabled so that single buffered messages for other keys
+                        // will be flushed (avoid false drops for low-rate symbols).
+                        if (slot.buf.size() >= opts_.warmup.enable_threshold) {
+                            kind_enabled[static_cast<int>(slot.buf.back().kind)] = true;
+                        }
+
+                        logger::debug("subman", "init_push_buffering",
+                            {logger::field("topic", runtime::topic_for_msgkind(slot.buf.back().kind)),
+                                logger::field("key", slot.buf.back().symbol),
+                                logger::num("buffered", slot.buf.size())});
+                        continue;
+                    }
+                    // window ended: flush buffered once, then fallthrough to forward current msg
+                    flush_slot(sink_, kind_enabled, slot, e.kind, e.symbol);
+                    warmups.erase(it);
+                }
                 sink_.submit(sink_.ctx, std::move(e));
             }
         }
@@ -438,13 +619,13 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
     logger::info("subman", "unsubscribe_sent",
                  {logger::num("serial", sn),
                   logger::field("code", id.code),
-                  logger::num("subtyps", subs.size())});
+                  logger::num("subtypes", subs.size())});
     return sn;
 }
 
-int64_t SubscriptionManager::now_ns() {
+int64_t SubscriptionManager::now_ms() {
     using namespace std::chrono;
-    return duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 bool SubscriptionManager::enqueue(Envelope&& e) {
@@ -452,8 +633,13 @@ bool SubscriptionManager::enqueue(Envelope&& e) {
         return true;
     }
     if (opts_.overflow == queue::OverflowPolicy::DropOldest) {
+        const auto topic = runtime::topic_for_msgkind(e.kind);
+        const auto key = e.symbol;
         Envelope dropped;
         (void)inbox_.try_pop(dropped);
+        logger::warn("subman", "inbox_drop_oldest",
+             {logger::field("topic", topic),
+              logger::field("key", key)});
         return inbox_.try_push(std::move(e));
     }
     while (!inbox_.try_push(std::move(e))) {

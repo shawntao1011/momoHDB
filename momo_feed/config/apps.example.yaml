@@ -20,6 +20,10 @@ subscriptionmanager:
   capacity: 8192
   refresh_ms: 5000
   overflow: "block"
+  warmup:
+    window_ms: 1000
+    enable_threshold: 2
+    bypass_kinds: [ KL1Min ]
 
 downstreams:
   - name: "redpanda-example"

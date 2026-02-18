@@ -3,6 +3,8 @@
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
 
+#include "runtime/TopicRegistry.hpp"
+
 namespace fs = std::filesystem;
 
 template <typename T>
@@ -37,6 +39,31 @@ static std::expected<T, cfg::ConfigError> optional_scalar_as(
     } catch (const std::exception& ex) {
         return std::unexpected(cfg::ConfigError{file, path, ex.what()});
     }
+}
+
+template <typename T>
+static std::expected<std::vector<T>, cfg::ConfigError> optional_seq_as(
+    const YAML::Node& n,
+    const std::string& file,
+    const std::string& path) {
+    std::vector<T> out;
+    if (!n) return out;
+    if (!n.IsSequence()) {
+        return std::unexpected(cfg::ConfigError{file, path, "expected sequence"});
+    }
+    out.reserve(n.size());
+    for (std::size_t i = 0; i < n.size(); ++i) {
+        const auto item = n[i];
+        if (!item.IsScalar()) {
+            return std::unexpected(cfg::ConfigError{file, path + "[" + std::to_string(i) + "]", "expected scalar"});
+        }
+        try {
+            out.push_back(item.as<T>());
+        } catch (const std::exception& ex) {
+            return std::unexpected(cfg::ConfigError{file, path + "[" + std::to_string(i) + "]", ex.what()});
+        }
+    }
+    return out;
 }
 
 static std::expected<cfg::OverflowPolicy, cfg::ConfigError> parse_overflow_policy(
@@ -171,6 +198,41 @@ cfg::ConfigLoader::load(const std::string& path) {
         auto overflow = parse_overflow_policy(*overflow_value, path, "subscriptionmanager.overflow");
         if (!overflow) return std::unexpected(overflow.error());
         cfg.submanager.overflow = *overflow;
+
+        // -------- warmup gate --------
+        if (auto wn = n["warmup"]; wn) {
+            if (!wn.IsMap()) {
+                return std::unexpected(ConfigError{path, "subscriptionmanager.warmup", "expected map"});
+            }
+
+            auto window_ms = optional_scalar_as<int>(
+                wn["window_ms"], path, "subscriptionmanager.warmup.window_ms", cfg.submanager.warmup.window_ms);
+            if (!window_ms) return std::unexpected(window_ms.error());
+            if (*window_ms < 0) {
+                return std::unexpected(ConfigError{path, "subscriptionmanager.warmup.window_ms", "must be >= 0"});
+            }
+            cfg.submanager.warmup.window_ms = *window_ms;
+
+            auto enable_th = optional_scalar_as<std::size_t>(
+                wn["enable_threshold"], path, "subscriptionmanager.warmup.enable_threshold", cfg.submanager.warmup.enable_threshold);
+            if (!enable_th) return std::unexpected(enable_th.error());
+            if (*enable_th == 0) {
+                return std::unexpected(ConfigError{path, "subscriptionmanager.warmup.enable_threshold", "must be >= 1"});
+            }
+            cfg.submanager.warmup.enable_threshold = *enable_th;
+
+            auto bypass_kinds = optional_seq_as<std::string>(
+                wn["bypass_kinds"], path, "subscriptionmanager.warmup.bypass_kinds");
+            if (!bypass_kinds) return std::unexpected(bypass_kinds.error());
+            cfg.submanager.warmup.bypass_kinds.clear();
+            cfg.submanager.warmup.bypass_kinds.reserve(bypass_kinds->size());
+            for (std::size_t i = 0; i < bypass_kinds->size(); ++i) {
+                const auto& token = (*bypass_kinds)[i];
+                auto kind = runtime::msgkind_for_yamlcfg(token);
+                cfg.submanager.warmup.bypass_kinds.push_back(kind);
+            }
+
+        }
     }
 
     // -------- downstreams --------
