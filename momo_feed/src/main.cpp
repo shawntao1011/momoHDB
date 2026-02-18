@@ -82,7 +82,15 @@ int main (int argc, char *argv[]) {
             cfg.subscription.path,
             std::chrono::milliseconds{cfg.submanager.refresh_ms},
             cfg.submanager.capacity,
-            to_queue_overflow(cfg.submanager.overflow)
+            to_queue_overflow(cfg.submanager.overflow),
+            [&](){
+                cfg::WarmupPolicy wp;
+                wp.window_ms = cfg.submanager.warmup.window_ms;
+                wp.enable_threshold = cfg.submanager.warmup.enable_threshold;
+                // default: bypass list from config (can be empty)
+                for (const auto& t : cfg.submanager.warmup.bypass_topics) wp.bypass_topics.insert(t);
+                return wp;
+            }()
         });
    
     SessionCallbacks cbs;

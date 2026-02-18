@@ -19,11 +19,18 @@ struct SubscriptionCfg {
     std::string path;
 };
 
-// ---------- queue ----------
+// ---------- Manager ----------
+struct WarmupCfg {
+    int window_ms{1000};
+    std::size_t enable_threshold{2};
+    std::vector<std::string> bypass_topics;
+};
+
 struct SubscriptionManagerCfg {
     int refresh_ms{5000};
     std::size_t capacity{1024};
     cfg::OverflowPolicy overflow{cfg::OverflowPolicy::Block};
+    WarmupCfg warmup;
 };
 
 // ---------- sinks ----------

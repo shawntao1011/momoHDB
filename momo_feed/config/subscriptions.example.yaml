@@ -5,7 +5,7 @@ defaults:
     - BasicQot
     - OrderBook
     - Ticker
-    - KL_1Min
+    - KL1Min
 
 securities:
   - symbol: HK.00700

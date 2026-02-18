@@ -13,6 +13,7 @@
 #include "Subscription.hpp"
 #include "common/Envelope.hpp"
 #include "common/SPSCQueue.hpp"
+#include "config/WarmupPolicy.hpp"
 #include "sinks/Sink.hpp"
 
 using SubscriptionLoadFn = std::function<std::expected<SubscribeConfig, std::string>(const std::string&)>;
@@ -25,6 +26,7 @@ class SubscriptionManager {
         std::chrono::milliseconds refresh_interval{5000};
         std::size_t capacity{32768};
         queue::OverflowPolicy overflow{queue::OverflowPolicy::Block};
+        cfg::WarmupPolicy warmup; // config-driven warmup policy
     };
 
     // -----------------------------------------------------------------------------

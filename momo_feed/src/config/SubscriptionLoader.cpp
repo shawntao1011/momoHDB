@@ -102,7 +102,7 @@ std::expected<void, std::string> cfg::SubscriptionLoader::parse_subtype(const st
     if (s == "BasicQot") { out = Qot_Common::SubType_Basic; return {}; }
     if (s == "OrderBook" ) { out = Qot_Common::SubType_OrderBook; return {}; }
     if (s == "Ticker") { out = Qot_Common::SubType_Ticker; return {}; }
-    if (s == "KL_1Min") { out = Qot_Common::SubType_KL_1Min; return {}; }
+    if (s == "KL1Min") { out = Qot_Common::SubType_KL_1Min; return {}; }
     if (s == "RT") { out = Qot_Common::SubType_RT; return {}; }
     if (s == "Broker") { out = Qot_Common::SubType_Broker; return {}; }
     return std::unexpected("unknown subtype: " + s);
