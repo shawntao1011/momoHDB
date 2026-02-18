@@ -17,16 +17,13 @@ namespace cfg {
         std::size_t enable_threshold{2};
 
         // Topics that should bypass warmup gate.
-        std::unordered_set<std::string> bypass_topics;
+        std::unordered_set<int> bypass_kinds;
 
         WarmupPolicy() = default;
 
-        WarmupMode mode(std::string_view topic) const noexcept {
-            // Note: topic strings are small; unordered_set lookup is fine.
-            if (bypass_topics.find(std::string(topic)) != bypass_topics.end()) {
-                return WarmupMode::Bypass;
-            }
-            return WarmupMode::Eligible;
+        WarmupMode mode(MsgKind k) const {
+            return bypass_kinds.count(static_cast<int>(k)) ? WarmupMode::Bypass
+                                                           : WarmupMode::Eligible;
         }
     };
 

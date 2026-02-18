@@ -88,7 +88,7 @@ int main (int argc, char *argv[]) {
                 wp.window_ms = cfg.submanager.warmup.window_ms;
                 wp.enable_threshold = cfg.submanager.warmup.enable_threshold;
                 // default: bypass list from config (can be empty)
-                for (const auto& t : cfg.submanager.warmup.bypass_topics) wp.bypass_topics.insert(t);
+                for (const auto& t : cfg.submanager.warmup.bypass_topics) wp.bypass_kinds.insert(t);
                 return wp;
             }()
         });

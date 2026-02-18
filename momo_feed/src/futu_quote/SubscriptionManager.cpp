@@ -7,6 +7,7 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
 #include "common/JsonLogger.hpp"
@@ -44,14 +45,124 @@ static std::string make_key(int market, const std::string& code) {
     return market_prefix(market) + "." + code;
 }
 
-static inline std::string warm_key(const std::string& topic, const std::string& key) {
+static inline std::string warm_key_kind(MsgKind kind, const std::string& sym) {
     std::string k;
-    k.reserve(topic.size() + 1 + key.size());
-    k.append(topic);
+    auto kid = std::to_string(static_cast<int>(kind));
+    k.reserve(kid.size() + 1 + sym.size());
+    k.append(kid);
     k.push_back('|');
-    k.append(key);
+    k.append(sym);
     return k;
 }
+
+namespace {
+
+using WarmupMap = std::unordered_map<std::string, SubscriptionManager::WarmupSlot>; // "kind|sym"
+using KindEnableMap = std::unordered_map<int, bool>; // kind(int) -> enabled
+
+static cfg::WarmupMode resolve_warmup_mode(const cfg::WarmupPolicy& warmup, std::string_view topic) {
+    return warmup.mode(runtime::msgkind_for_topic(topic));
+}
+
+static void open_warmup_for_mask(
+    WarmupMap& warmups,
+    KindEnableMap& enabled,
+    const cfg::WarmupPolicy& policy,
+    std::chrono::milliseconds window,
+    const std::string& sym,
+    SubMask mask)
+{
+    if (window.count() == 0) return;
+
+    const auto until = std::chrono::steady_clock::now() + window;
+    std::vector<Qot_Common::SubType> subs;
+    mask_to_vec(mask, subs);
+
+    for (auto st : subs) {
+        auto kind = runtime::msgkind_for_subtype(st);
+        if (policy.mode(kind) == cfg::WarmupMode::Bypass) continue;
+
+        auto& slot = warmups[warm_key_kind(kind, sym)];
+        slot.until = until;
+        slot.active = true;
+        slot.buf.clear();
+        slot.buf.reserve(64);
+
+        enabled[static_cast<int>(kind)] = false;
+
+        logger::info("subman", "init_push_warmup_opened",
+            { logger::field("kind", std::to_string(static_cast<int>(kind))),
+              logger::field("topic", runtime::topic_for_msgkind(kind)),
+              logger::field("key", sym),
+              logger::num("warmup_ms", window.count())});
+    }
+}
+
+static void flush_slot(
+    Sink sink,
+    TopicEnableMap& topic_enabled,
+    SubscriptionManager::WarmupSlot& slot,
+    std::string_view topic,
+    std::string_view key) {
+    if (!sink.submit) {
+        slot.buf.clear();
+        slot.active = false;
+        return;
+    }
+
+    const bool enabled = topic_enabled[std::string(topic)];
+    if (!enabled && slot.buf.size() <= 1) {
+        const auto buffered = slot.buf.size();
+        // snapshot-only / no-push warmup: drop and raise warning for visibility.
+        logger::warn("subman", "init_push_drop",
+            {logger::field("topic", topic),
+                logger::field("key", key),
+                logger::b("no_msg", buffered == 0),
+                logger::b("single_only", buffered == 1)});
+        slot.buf.clear();
+        slot.active = false;
+        return;
+    }
+
+    logger::info("subman", "init_push_flush",
+         {logger::field("topic", topic),
+          logger::field("key", key),
+          logger::num("buffered", slot.buf.size())});
+    for (auto& e : slot.buf) {
+        sink.submit(sink.ctx, std::move(e));
+    }
+    slot.buf.clear();
+    slot.active = false;
+}
+
+static void sweep_expired_warmups(
+    WarmupMap& warmups,
+    TopicEnableMap& topic_enabled,
+    Sink sink,
+    const std::chrono::milliseconds window) {
+    if (warmups.empty() || window.count() == 0) return;
+
+    const auto now = std::chrono::steady_clock::now();
+    for (auto it = warmups.begin(); it != warmups.end(); ) {
+        auto& slot = it->second;
+        if (slot.active && now >= slot.until) {
+            const auto sep = it->first.find('|');
+            const std::string_view topic = (sep == std::string::npos)
+                ? std::string_view{}
+                : std::string_view(it->first).substr(0, sep);
+            const std::string_view key = (sep == std::string::npos)
+                ? std::string_view(it->first)
+                : std::string_view(it->first).substr(sep + 1);
+
+            flush_slot(sink, topic_enabled, slot, topic, key);
+            it = warmups.erase(it);
+            continue;
+        }
+        ++it;
+    }
+}
+
+} // namespace
 
 SubscriptionManager::SubscriptionManager(Sink sink, SubscriptionLoadFn cfgloader, Options opts)
     : sink_(sink)
@@ -184,98 +295,9 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
     std::vector<Envelope> batch;
     batch.reserve(1024);
 
-    // Per (topic|key) warmup slots.
-    std::unordered_map<std::string, WarmupSlot> warmups;
-
-    // Topic-level enable: once we observe any (topic,security) producing >= enable_threshold
-    // messages during warmup, we consider this topic "active" and will flush even single buffered
-    // messages for all securities of this topic (avoid false drops for low-rate symbols).
-    std::unordered_map<std::string, bool> topic_enabled;
-    const auto WARMUP = std::chrono::milliseconds(opts_.warmup.window_ms);
-
-    auto warmup_mode = [&](std::string_view topic) -> cfg::WarmupMode {
-        return opts_.warmup.mode(topic);
-    };
-
-    auto open_warmup_for_mask = [&](const std::string& key, SubMask mask) {
-        if (WARMUP.count() == 0) return; // disabled
-        const auto until = std::chrono::steady_clock::now() + WARMUP;
-
-        std::vector<Qot_Common::SubType> subs;
-        mask_to_vec(mask, subs);
-
-        for (auto st : subs) {
-            auto topic = runtime::topic_for_subtype(st);
-            if (topic.empty()) continue;
-
-            if (warmup_mode(topic) == cfg::WarmupMode::Bypass) {
-                continue;
-            }
-
-            auto& slot = warmups[warm_key(std::string(topic), key)];
-            slot.until = until;
-            slot.active = true;
-            slot.buf.clear();
-            slot.buf.reserve(64);
-
-            // ensure topic exists in map
-            topic_enabled[std::string(topic)] = false;
-
-            logger::info("subman", "init_push_warmup_opened",
-             {logger::field("topic", std::string(topic)),
-              logger::field("key", key),
-              logger::num("warmup_ms", WARMUP.count())});
-        }
-    };
-
-    auto flush_slot = [&](WarmupSlot& slot, std::string_view topic, std::string_view key) {
-        if (!sink_.submit) {
-            slot.buf.clear();
-            slot.active = false;
-            return;
-        }
-
-        const bool enabled = topic_enabled[std::string(topic)];
-
-        if (!enabled && slot.buf.size() <= 1) {
-            // snapshot-only warmup: drop
-            logger::info("subman", "init_push_drop",
-            {logger::field("topic", topic),
-                logger::field("key", key),
-                logger::num("buffered", slot.buf.size())});
-            slot.buf.clear();
-            slot.active = false;
-            return;
-        }
-        logger::info("subman", "init_push_flush",
-             {logger::field("topic", topic),
-              logger::field("key", key),
-              logger::num("buffered", slot.buf.size())});
-        for (auto& e : slot.buf) {
-            sink_.submit(sink_.ctx, std::move(e));
-        }
-        slot.buf.clear();
-        slot.active = false;
-    };
-
-    // Best-effort sweep: flush/drop expired warmup buffers even if no new message arrives.
-    auto sweep_expired = [&]() {
-        if (warmups.empty() || WARMUP.count() == 0) return;
-        const auto now = std::chrono::steady_clock::now();
-        for (auto it = warmups.begin(); it != warmups.end(); ) {
-            auto& slot = it->second;
-            if (slot.active && now >= slot.until) {
-                // decode warm_key to topic/key for logging: "topic|key"
-                auto sep = it->first.find('|');
-                std::string_view topic = (sep == std::string::npos) ? std::string_view{} : std::string_view(it->first).substr(0, sep);
-                std::string_view key   = (sep == std::string::npos) ? std::string_view(it->first) : std::string_view(it->first).substr(sep + 1);
-                flush_slot(slot, topic, key);
-                it = warmups.erase(it);
-                continue;
-            }
-            ++it;
-        }
-    };
+    WarmupMap warmups;
+    TopicEnableMap topic_enabled;
+    const auto warmup_window = std::chrono::milliseconds(opts_.warmup.window_ms);
 
     while (!stop.load(std::memory_order_relaxed)) {
         if (session_) {
@@ -316,7 +338,13 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
                 // "cached snapshot" push after restart from polluting downstream.
                 if (has_current_) {
                     for (const auto& [id, mask] : current_state_) {
-                        open_warmup_for_mask(make_key(static_cast<int>(id.market), id.code), mask);
+                        open_warmup_for_mask(
+                            warmups,
+                            topic_enabled,
+                            opts_.warmup,
+                            warmup_window,
+                            make_key(static_cast<int>(id.market), id.code),
+                            mask);
                     }
                 }
             }
@@ -332,6 +360,8 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
 
         // --------- data plane (push -> sink) ----------
+        sweep_expired_warmups(warmups, topic_enabled, sink_, warmup_window);
+
         batch.clear();
         auto n = inbox_.pop_many(batch, 1024);
 
@@ -341,13 +371,13 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
 
         if (sink_.submit) {
-            // Flush/drop expired warmup buffers even if no new messages arrive.
-            sweep_expired();
 
             const auto now = std::chrono::steady_clock::now();
             for (auto& e : batch) {
                 // Policy: bypass topics never enter warmup gate.
-                if (warmup_mode(runtime::topic_for_msgkind(e.kind)) == cfg::WarmupMode::Bypass || WARMUP.count() == 0) {
+                if (resolve_warmup_mode(opts_.warmup, runtime::topic_for_msgkind(e.kind)) == cfg::WarmupMode::Bypass
+                    || warmup_window.count() == 0)
+                {
                     sink_.submit(sink_.ctx, std::move(e));
                     continue;
                 }
@@ -374,7 +404,7 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
                         continue;
                     }
                     // window ended: flush buffered once, then fallthrough to forward current msg
-                    flush_slot(slot, runtime::topic_for_msgkind(e.kind), e.symbol);
+                    flush_slot(sink_, topic_enabled, slot, runtime::topic_for_msgkind(e.kind), e.symbol);
                     warmups.erase(it);
                 }
                 sink_.submit(sink_.ctx, std::move(e));
