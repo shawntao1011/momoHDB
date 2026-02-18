@@ -204,10 +204,14 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
             slot.active = true;
             slot.buf.clear();
             slot.buf.reserve(64);
+            logger::info("subman", "init_push_warmup_opened",
+             {logger::field("topic", t),
+              logger::field("key", key),
+              logger::num("warmup_ms", WARMUP.count())});
         }
     };
 
-    auto flush_slot = [&](WarmupSlot& slot) {
+    auto flush_slot = [&](WarmupSlot& slot, std::string_view topic, std::string_view key) {
         if (!sink_.submit) {
             slot.buf.clear();
             slot.active = false;
@@ -215,10 +219,18 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
         }
         if (slot.buf.size() <= 1) {
             // snapshot-only warmup: drop
+            logger::info("subman", "init_push_drop",
+            {logger::field("topic", topic),
+                logger::field("key", key),
+                logger::num("buffered", slot.buf.size())});
             slot.buf.clear();
             slot.active = false;
             return;
         }
+        logger::info("subman", "init_push_flush",
+             {logger::field("topic", topic),
+              logger::field("key", key),
+              logger::num("buffered", slot.buf.size())});
         for (auto& e : slot.buf) {
             sink_.submit(sink_.ctx, std::move(e));
         }
@@ -298,10 +310,14 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
                     auto& slot = it->second;
                     if (now < slot.until) {
                         slot.buf.emplace_back(std::move(e));
+                        logger::debug("subman", "init_push_buffering",
+                            {logger::field("topic", slot.buf.back().topic),
+                                logger::field("key", slot.buf.back().key),
+                                logger::num("buffered", slot.buf.size())});
                         continue;
                     }
                     // window ended: flush once, then fallthrough to forward current msg
-                    flush_slot(slot);
+                    flush_slot(slot, e.topic, e.key);
                 }
                 sink_.submit(sink_.ctx, std::move(e));
             }
@@ -510,7 +526,7 @@ Futu::u32_t SubscriptionManager::unsubscribe_api(const SecurityId& id, const std
     logger::info("subman", "unsubscribe_sent",
                  {logger::num("serial", sn),
                   logger::field("code", id.code),
-                  logger::num("subtyps", subs.size())});
+                  logger::num("subtypes", subs.size())});
     return sn;
 }
 
@@ -524,8 +540,13 @@ bool SubscriptionManager::enqueue(Envelope&& e) {
         return true;
     }
     if (opts_.overflow == queue::OverflowPolicy::DropOldest) {
+        const auto topic = e.topic;
+        const auto key = e.key;
         Envelope dropped;
         (void)inbox_.try_pop(dropped);
+        logger::warn("subman", "inbox_drop_oldest",
+             {logger::field("topic", topic),
+              logger::field("key", key)});
         return inbox_.try_push(std::move(e));
     }
     while (!inbox_.try_push(std::move(e))) {
