@@ -73,7 +73,7 @@ target_link_libraries(futu_openapi INTERFACE
   futu_openapi_protobuf
 )
 
-add_library(futu_pb STATIC
+add_library(futu_quote_schema STATIC
         ${FUTU_INCDIR}/Proto/Common.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_Common.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_UpdateOrderBook.pb.cc
@@ -81,14 +81,14 @@ add_library(futu_pb STATIC
         ${FUTU_INCDIR}/Proto/Qot_UpdateTicker.pb.cc
         ${FUTU_INCDIR}/Proto/Qot_UpdateKL.pb.cc
 )
-set_target_properties(futu_pb PROPERTIES
+set_target_properties(futu_quote_schema PROPERTIES
         POSITION_INDEPENDENT_CODE ON
 )
-target_include_directories(futu_pb PUBLIC
+target_include_directories(futu_quote_schema PUBLIC
         ${FUTU_INCDIR}
 )
-target_link_libraries(futu_pb PUBLIC
-        protobuf::libprotobuf
+target_link_libraries(futu_quote_schema PUBLIC
+        futu_openapi_protobuf
 )
 
 add_dependencies(futu_openapi_ftapi fetch_futu)
