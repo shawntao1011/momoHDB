@@ -13,11 +13,8 @@ add_executable(momo_feeder
         ${CMAKE_CURRENT_SOURCE_DIR}/src/futu_quote/SubscriptionManager.cpp
 )
 
-find_package(Protobuf REQUIRED MODULE)
-
 target_include_directories(momo_feeder PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${Protobuf_INCLUDE_DIRS}
 )
 
 target_link_libraries(momo_feeder PRIVATE
@@ -25,8 +22,6 @@ target_link_libraries(momo_feeder PRIVATE
         fmt
         momo_utils
         futu_openapi
-
-        ${Protobuf_LIBRARIES}
 
         PkgConfig::RDKAFKACPP
         PkgConfig::RDKAFKA

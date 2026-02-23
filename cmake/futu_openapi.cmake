@@ -65,6 +65,9 @@ set_target_properties(futu_openapi_protobuf PROPERTIES
   IMPORTED_LOCATION "${FUTU_LIBDIR}/libprotobuf.a"
   INTERFACE_INCLUDE_DIRECTORIES "${FUTU_INCDIR}"
 )
+target_link_libraries(futu_openapi_ftapi INTERFACE
+        futu_openapi_protobuf
+)
 
 add_library(futu_openapi INTERFACE IMPORTED GLOBAL)
 target_link_libraries(futu_openapi INTERFACE
