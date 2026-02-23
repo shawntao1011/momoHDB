@@ -20,6 +20,7 @@ target_include_directories(futu_quote_decoders PRIVATE
 target_link_libraries(futu_quote_decoders PRIVATE
         kafkax::abi
         kafkax::qipc
+        momo_utils
         futu_quote_schema
         futu_openapi_protobuf
 )

@@ -70,7 +70,6 @@ add_library(futu_openapi INTERFACE IMPORTED GLOBAL)
 target_link_libraries(futu_openapi INTERFACE
   futu_openapi_ftapi
   futu_openapi_channel
-  futu_openapi_protobuf
 )
 
 add_library(futu_quote_schema STATIC

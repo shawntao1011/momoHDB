@@ -1,4 +1,7 @@
 #include "futu_quote/SubscriptionManager.hpp"
+
+#include "momo_utils/market_utils.hpp"
+
 #include <FTAPI.h>
 #include <FTSPI.h>
 #include <Proto/Qot_Common.pb.h>
@@ -11,6 +14,7 @@
 #include <utility>
 
 #include "common/JsonLogger.hpp"
+#include "momo_utils/market_utils.hpp"
 #include "runtime/TopicRegistry.hpp"
 
 static std::size_t next_pow2(std::size_t v) {
@@ -18,31 +22,6 @@ static std::size_t next_pow2(std::size_t v) {
     std::size_t p = 1;
     while (p < v) p <<= 1;
     return p;
-}
-
-static std::string market_prefix(int market) {
-    // Prefer human-friendly keys like HK.00700 / US.AAPL / SH.600519.
-    const std::string name = Qot_Common::QotMarket_Name(
-        static_cast<Qot_Common::QotMarket>(market)
-    );
-    constexpr std::string_view prefix = "QotMarket_";
-    constexpr std::string_view suffix = "_Security";
-
-    if (!name.starts_with(prefix) || !name.ends_with(suffix)) {
-        return name; //fallback
-    }
-    const auto begin = prefix.size();
-    const auto len   = name.size() - prefix.size() - suffix.size();
-
-    if (len == 0) {
-        return name; //fallback
-    }
-
-    return name.substr(begin, len);
-}
-
-static std::string make_key(int market, const std::string& code) {
-    return market_prefix(market) + "." + code;
 }
 
 static inline std::string warm_key_kind(MsgKind kind, const std::string& sym) {
@@ -216,7 +195,7 @@ void SubscriptionManager::on_push_basicqot(const Qot_UpdateBasicQot::Response &s
 
         Envelope e;
         e.kind = MsgKind::BasicQuote;
-        e.symbol = make_key(sec.market(), sec.code());
+        e.symbol = momo::utils::make_symbol_key(sec.market(), sec.code());
         e.ingest_time_ms = now_ms();
         e.payload.resize(static_cast<size_t>(single_rsp.ByteSizeLong()));
         if (!single_rsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -230,7 +209,7 @@ void SubscriptionManager::on_push_orderbook(const Qot_UpdateOrderBook::Response 
     Envelope e;
     e.kind = MsgKind::OrderBook;
     const auto& sec = stRsp.s2c().security();
-    e.symbol = make_key(sec.market(), sec.code());
+    e.symbol = momo::utils::make_symbol_key(sec.market(), sec.code());
     e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -244,7 +223,7 @@ void SubscriptionManager::on_push_ticker(const Qot_UpdateTicker::Response &stRsp
     Envelope e;
     e.kind = MsgKind::Ticker;
     const auto& sec = stRsp.s2c().security();
-    e.symbol = make_key(sec.market(), sec.code());
+    e.symbol = momo::utils::make_symbol_key(sec.market(), sec.code());
     e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -258,7 +237,7 @@ void SubscriptionManager::on_push_kl(const Qot_UpdateKL::Response &stRsp)
     Envelope e;
     e.kind = MsgKind::KL1Min;
     const auto& sec = stRsp.s2c().security();
-    e.symbol = make_key(sec.market(), sec.code());
+    e.symbol = momo::utils::make_symbol_key(sec.market(), sec.code());
     e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -272,7 +251,7 @@ void SubscriptionManager::on_push_rt(const Qot_UpdateRT::Response &stRsp)
     Envelope e;
     e.kind = MsgKind::RT;
     const auto& sec = stRsp.s2c().security();
-    e.symbol = make_key(sec.market(), sec.code());
+    e.symbol = momo::utils::make_symbol_key(sec.market(), sec.code());
     e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -286,7 +265,7 @@ void SubscriptionManager::on_push_broker(const Qot_UpdateBroker::Response &stRsp
     Envelope e;
     e.kind = MsgKind::Broker;
     const auto& sec = stRsp.s2c().security();
-    e.symbol = make_key(sec.market(), sec.code());
+    e.symbol = momo:: utils::make_symbol_key(sec.market(), sec.code());
     e.ingest_time_ms = now_ms();
     e.payload.resize(static_cast<size_t>(stRsp.ByteSizeLong()));
     if (!stRsp.SerializeToArray(e.payload.data(), static_cast<int>(e.payload.size()))) {
@@ -348,7 +327,7 @@ void SubscriptionManager::run(std::atomic<bool> &stop) {
                             kind_enabled,
                             opts_.warmup,
                             warmup_window,
-                            make_key(static_cast<int>(id.market), id.code),
+                            momo::utils::make_symbol_key(static_cast<int>(id.market), id.code),
                             mask);
                     }
                 }

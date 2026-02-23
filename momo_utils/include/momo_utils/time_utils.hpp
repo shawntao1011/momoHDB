@@ -1,55 +1,16 @@
 #pragma once
 
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <string>
-#include <string_view>
 #include <chrono>
-#include <vector>
+#include <cstdint>
 
-#include "kafkax/core/decoder.h"
-
-namespace momo::util {
-
-    inline void set_err(kafkax_decode_out_t* out, const char* msg) {
-        if (!out) return;
-            out->kind = KAFKAX_DECODE_ERR;
-        if (msg) {
-            std::snprintf(out->err_msg, sizeof(out->err_msg), "%s", msg);
-            out->err_msg[sizeof(out->err_msg) - 1] = '\0';
-        } else {
-            out->err_msg[0] = '\0';
-        }
-    }
-
-    inline void set_err(kafkax_decode_out_t* out, const std::string& msg) {
-        set_err(out, msg.c_str());
-    }
+namespace momo::utils {
 
     inline std::chrono::system_clock::time_point tp_from_ts_ms(int64_t ts_ms) {
-        if (ts_ms <= 0) {
-            return std::chrono::system_clock::now();
+            if (ts_ms <= 0) {
+                return std::chrono::system_clock::now();
+            }
+            return std::chrono::system_clock::time_point{std::chrono::milliseconds{ts_ms}};
         }
-        return std::chrono::system_clock::time_point{std::chrono::milliseconds{ts_ms}};
-    }
-
-    // Futu uses integer market codes in proto; map common ones.
-    inline std::string market_code_to_prefix(int32_t mkt) {
-        switch (mkt) {
-            case 1: return "HK";
-            case 2: return "US";
-            case 3: return "SH"; // guess
-            case 4: return "SZ"; // guess
-            default: return std::to_string(mkt);
-        }
-    }
-
-    template <class SecurityT>
-    inline std::string build_symbol_from_security(const SecurityT& sec) {
-        // Security has fields: market(), code()
-        return market_code_to_prefix(static_cast<int32_t>(sec.market())) + "." + sec.code();
-    }
 
     namespace detail {
         inline bool is_digit(char c) { return c >= '0' && c <= '9'; }
@@ -112,29 +73,4 @@ namespace momo::util {
         return std::chrono::system_clock::time_point{std::chrono::seconds{epoch_sec}};
     }
 
-    inline int write_bytes_to_out(const std::vector<std::uint8_t>& bytes, kafkax_decode_out_t* out) {
-        if (!out) return -1;
-        out->err_msg[0] = '\0';
-
-        if (bytes.size() > out->cap) {
-            out->kind = KAFKAX_DECODE_NEED_MORE;
-            out->need = bytes.size();
-            out->len = 0;
-            return 0;
-        }
-
-        if (!out->buf || out->cap == 0) {
-            out->kind = KAFKAX_DECODE_ERR;
-            std::snprintf(out->err_msg, sizeof(out->err_msg), "output buffer is null/empty");
-            out->err_msg[sizeof(out->err_msg) - 1] = '\0';
-            return -1;
-        }
-
-        std::memcpy(out->buf, bytes.data(), bytes.size());
-        out->kind = KAFKAX_DECODE_OK;
-        out->len = bytes.size();
-        out->need = 0;
-        return 0;
-    }
-
-} // namespace momo::util
+}// namespace momo::utils
