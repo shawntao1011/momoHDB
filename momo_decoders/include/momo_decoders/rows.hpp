@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kafkax/qipc/encode.hpp"
-#include "kafkax/qipc/reflect.hpp"
+#include "qformat/qipc/encode.hpp"
+#include "qformat/qipc//reflect.hpp"
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -25,21 +25,21 @@ struct BasicQuoteRow {
     std::chrono::system_clock::time_point updtime;
 };
 
-inline constexpr std::array<kafkax::qipc::ColumnSpec<BasicQuoteRow>, 13>
+inline constexpr std::array<qformat::qipc::ColumnSpec<BasicQuoteRow>, 13>
     BASICQOT_COLS = {{
-        KAFKAX_QIPC_COL_SYM(BasicQuoteRow, "sym", sym),
-        KAFKAX_QIPC_COL_TSNS(BasicQuoteRow, "time", time),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "spread", spread),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "high", high),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "open", open),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "low", low),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "cur", cur),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "lastclose", lastclose),
-        KAFKAX_QIPC_COL_I64(BasicQuoteRow, "volume", volume),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "amount", amount),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "turnoverrate", turnoverrate),
-        KAFKAX_QIPC_COL_F64(BasicQuoteRow, "amplitude", amplitude),
-        KAFKAX_QIPC_COL_TSNS(BasicQuoteRow, "updtime", updtime),
+        QFORMAT_QIPC_COL_SYM(BasicQuoteRow, "sym", sym),
+        QFORMAT_QIPC_COL_TSNS(BasicQuoteRow, "time", time),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "spread", spread),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "high", high),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "open", open),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "low", low),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "cur", cur),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "lastclose", lastclose),
+        QFORMAT_QIPC_COL_I64(BasicQuoteRow, "volume", volume),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "amount", amount),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "turnoverrate", turnoverrate),
+        QFORMAT_QIPC_COL_F64(BasicQuoteRow, "amplitude", amplitude),
+        QFORMAT_QIPC_COL_TSNS(BasicQuoteRow, "updtime", updtime),
     }};
 
 struct OrderBookRow {
@@ -52,15 +52,15 @@ struct OrderBookRow {
     std::int32_t ordercount{};
 };
 
-inline constexpr std::array<kafkax::qipc::ColumnSpec<OrderBookRow>, 7>
+inline constexpr std::array<qformat::qipc::ColumnSpec<OrderBookRow>, 7>
     ORDERBOOK_COLS = {{
-        KAFKAX_QIPC_COL_SYM(OrderBookRow, "sym", sym),
-        KAFKAX_QIPC_COL_TSNS(OrderBookRow, "time", time),
-        KAFKAX_QIPC_COL_SYM(OrderBookRow, "side", side),
-        KAFKAX_QIPC_COL_I32(OrderBookRow, "level", level),
-        KAFKAX_QIPC_COL_F64(OrderBookRow, "price", price),
-        KAFKAX_QIPC_COL_I64(OrderBookRow, "volume", volume),
-        KAFKAX_QIPC_COL_I32(OrderBookRow, "ordercount", ordercount),
+        QFORMAT_QIPC_COL_SYM(OrderBookRow, "sym", sym),
+        QFORMAT_QIPC_COL_TSNS(OrderBookRow, "time", time),
+        QFORMAT_QIPC_COL_SYM(OrderBookRow, "side", side),
+        QFORMAT_QIPC_COL_I32(OrderBookRow, "level", level),
+        QFORMAT_QIPC_COL_F64(OrderBookRow, "price", price),
+        QFORMAT_QIPC_COL_I64(OrderBookRow, "volume", volume),
+        QFORMAT_QIPC_COL_I32(OrderBookRow, "ordercount", ordercount),
     }};
 
 struct TickerRow {
@@ -74,16 +74,16 @@ struct TickerRow {
     std::chrono::system_clock::time_point recvTime;
 };
 
-inline constexpr std::array<kafkax::qipc::ColumnSpec<TickerRow>, 8>
+inline constexpr std::array<qformat::qipc::ColumnSpec<TickerRow>, 8>
     TICKER_COLS = {{
-        KAFKAX_QIPC_COL_SYM(TickerRow, "sym", sym),
-        KAFKAX_QIPC_COL_TSNS(TickerRow, "time", time),
-        KAFKAX_QIPC_COL_I32(TickerRow, "direction", direction),
-        KAFKAX_QIPC_COL_F64(TickerRow, "price", price),
-        KAFKAX_QIPC_COL_I64(TickerRow, "volume", volume),
-        KAFKAX_QIPC_COL_F64(TickerRow, "amount", amount),
-        KAFKAX_QIPC_COL_TSNS(TickerRow, "msgTime", msgTime),
-        KAFKAX_QIPC_COL_TSNS(TickerRow, "recvTime", recvTime),
+        QFORMAT_QIPC_COL_SYM(TickerRow, "sym", sym),
+        QFORMAT_QIPC_COL_TSNS(TickerRow, "time", time),
+        QFORMAT_QIPC_COL_I32(TickerRow, "direction", direction),
+        QFORMAT_QIPC_COL_F64(TickerRow, "price", price),
+        QFORMAT_QIPC_COL_I64(TickerRow, "volume", volume),
+        QFORMAT_QIPC_COL_F64(TickerRow, "amount", amount),
+        QFORMAT_QIPC_COL_TSNS(TickerRow, "msgTime", msgTime),
+        QFORMAT_QIPC_COL_TSNS(TickerRow, "recvTime", recvTime),
     }};
 
 struct KL1MinRow {
@@ -103,22 +103,22 @@ struct KL1MinRow {
     std::chrono::system_clock::time_point tstime;
 };
 
-inline constexpr std::array<kafkax::qipc::ColumnSpec<KL1MinRow>, 14>
+inline constexpr std::array<qformat::qipc::ColumnSpec<KL1MinRow>, 14>
     KL1MIN_COLS = {{
-        KAFKAX_QIPC_COL_SYM(KL1MinRow, "sym", sym),
-        KAFKAX_QIPC_COL_TSNS(KL1MinRow, "time", time),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "high", high),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "open", open),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "low", low),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "close", close),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "lastclose", lastclose),
-        KAFKAX_QIPC_COL_I64(KL1MinRow, "volume", volume),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "amount", amount),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "turnoverrate", turnoverrate),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "pe", pe),
-        KAFKAX_QIPC_COL_F64(KL1MinRow, "changerate", changerate),
-        KAFKAX_QIPC_COL_TSNS(KL1MinRow, "recvtime", recvtime),
-        KAFKAX_QIPC_COL_TSNS(KL1MinRow, "tstime", tstime),
+        QFORMAT_QIPC_COL_SYM(KL1MinRow, "sym", sym),
+        QFORMAT_QIPC_COL_TSNS(KL1MinRow, "time", time),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "high", high),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "open", open),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "low", low),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "close", close),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "lastclose", lastclose),
+        QFORMAT_QIPC_COL_I64(KL1MinRow, "volume", volume),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "amount", amount),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "turnoverrate", turnoverrate),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "pe", pe),
+        QFORMAT_QIPC_COL_F64(KL1MinRow, "changerate", changerate),
+        QFORMAT_QIPC_COL_TSNS(KL1MinRow, "recvtime", recvtime),
+        QFORMAT_QIPC_COL_TSNS(KL1MinRow, "tstime", tstime),
     }};
 
 } // namespace momo::schema

@@ -1,4 +1,4 @@
-#include "kafkax/core/decoder.h"
+#include "kafkax/decoder.h"
 
 extern "C" {
 

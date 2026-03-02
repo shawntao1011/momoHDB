@@ -10,7 +10,7 @@
 #include "momo_decoders/rows.hpp"
 #include "momo_decoders/util.hpp"
 
-#include <kafkax/core/decoder.h>
+#include "kafkax/decoder.h"
 
 using momo::utils::tp_from_ts_ms;
 
@@ -81,6 +81,6 @@ extern "C" int momo_decode_ticker(const kafkax_envelope_t* env, kafkax_decode_ou
         rows.emplace_back(std::move(r));
     }
 
-    auto bytes = kafkax::qipc::encode_table_ipc<momo::schema::TickerRow>(rows, momo::schema::TICKER_COLS);
+    auto bytes = qformat::qipc::encode_table<momo::schema::TickerRow>(rows, momo::schema::TICKER_COLS);
     return momo::decoders::write_bytes_to_out(bytes, out);
 }

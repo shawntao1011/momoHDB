@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(${CMAKE_SOURCE_DIR}/cmake/futu_openapi.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/kx_kdb.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/kafkax.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/qformat.cmake)
 
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)

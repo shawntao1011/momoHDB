@@ -8,7 +8,7 @@
 #include <chrono>
 #include <vector>
 
-#include "kafkax/core/decoder.h"
+#include "kafkax/decoder.h"
 #include "momo_utils/market_utils.hpp"
 
 namespace momo::decoders {
